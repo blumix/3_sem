@@ -1,12 +1,13 @@
 import numpy as np
 import pandas as pd
-import time
-
+import matplotlib.pyplot as plt
 
 from numba import jit
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeRegressor
 
 
-@jit
+# @jit
 def _find_best_split_feature(argsort_x, feature_num, feature_val, min_error, num, sorted_y, tmp, values_list,
                              x):
     l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum = _init_sums(sorted_y, values_list)
@@ -23,18 +24,18 @@ def _find_best_split_feature(argsort_x, feature_num, feature_val, min_error, num
     return feature_num, feature_val, min_error, tmp
 
 
-@jit
+# @jit
 def _init_sums(sorted_y, values_list):
     r_size = sorted_y[:values_list[0]].size
     l_size = sorted_y[values_list[0]:].size
     r_sum = sorted_y[:values_list[0]].sum()
     l_sum = sorted_y[values_list[0]:].sum()
-    r_sq_sum = (sorted_y[values_list[0]:] ** 2).sum()
-    l_sq_sum = (sorted_y[:values_list[0]] ** 2).sum()
+    r_sq_sum = (sorted_y[:values_list[0]] ** 2).sum()
+    l_sq_sum = (sorted_y[values_list[0]:] ** 2).sum()
     return l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum
 
 
-@jit
+# @jit
 def _change_sums(l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum, changing_val):
     r_sum += changing_val
     l_sum -= changing_val
@@ -45,12 +46,15 @@ def _change_sums(l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum, changing_val)
     return l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum
 
 
-@jit
-def _get_mse(el_sum, sq_sum, num):
-    return (sq_sum - (el_sum * el_sum) / num) / num
+# @jit
+def _get_mse(el_sum, sq_sum,  num):
+    res = (sq_sum - (el_sum * el_sum) / num) / num
+    if res < 0:
+        raise 1
+    return res
 
 
-@jit
+# @jit
 def load_data():
     all_data = pd.read_csv("auto-mpg.data",
                            delim_whitespace=True, header=None,
@@ -62,6 +66,7 @@ def load_data():
                'model', 'origin']
     X = np.array(all_data[columns])
     return X, y
+
 
 class MyDecisionTreeRegressor:
     NON_LEAF_TYPE = 0
@@ -130,7 +135,7 @@ class MyDecisionTreeRegressor:
         node = self.tree[node_id]
         if node[0] == self.__class__.NON_LEAF_TYPE:
             _, feature_num, feature_val = node
-            if x[feature_num] > feature_val:
+            if x[feature_num] < feature_val:
                 return self.__predict(x, 2 * node_id + 1)
             else:
                 return self.__predict(x, 2 * node_id + 2)
@@ -147,11 +152,25 @@ class MyDecisionTreeRegressor:
 
 def tree_test():
     X, y = load_data()
-    start_time = time.time()
-    for i in range(1000):
-        a_i = MyDecisionTreeRegressor(max_depth=3)
-        a_i.fit(X, y)
-    print time.time() - start_time
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+
+    err = []
+    test_err = []
+    for i in range(1, 5):
+        tree = MyDecisionTreeRegressor(max_depth=i)
+        tree.fit(X_train, y_train)
+        err.append(np.linalg.norm(tree.predict(X_test) - y_test))
+
+        test_tree = DecisionTreeRegressor(max_depth=i, criterion='mse')
+        test_tree.fit(X_train, y_train)
+        test_err.append(np.linalg.norm(test_tree.predict(X_test) - y_test))
+
+    print err
+    print
+    print test_err
+    plt.plot(err, label='my')
+    plt.plot(test_err, label='test')
+    plt.show()
 
 
 tree_test()

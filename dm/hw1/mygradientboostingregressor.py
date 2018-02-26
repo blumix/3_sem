@@ -1,15 +1,16 @@
 import numpy as np
-from sklearn.tree import DecisionTreeRegressor
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.tree import DecisionTreeRegressor
 
 from cart import MyDecisionTreeRegressor
 
 
-class Boost:
-    def __init__(self, number_of_trees=10, gd_iterations=1000, gd_lr=0.00005):
-        self.number_of_trees = number_of_trees
+class MyGradientBoostingRegressor:
+    def __init__(self, n_estimators=10, gd_iterations=1000, gd_lr=0.00005):
+        self.n_estimators = n_estimators
         self.a = []
         self.b = []
         self.gd_iterations = gd_iterations
@@ -26,10 +27,10 @@ class Boost:
 
     def fit(self, X, y):
         h = np.median(y)  # 1. init array h0
-        for tree_num in range(self.number_of_trees):
+        for tree_num in range(self.n_estimators):
             g = np.sign(y - h)
-            a_i = MyDecisionTreeRegressor(max_depth=3)
-            # a_i = DecisionTreeRegressor(max_depth=3)
+            # a_i = MyDecisionTreeRegressor(max_depth=3)
+            a_i = DecisionTreeRegressor(max_depth=3)
             a_i.fit(X, -g)
             self.a.append(a_i)
             # res = a_i.predict(X)
@@ -66,14 +67,27 @@ if __name__ == '__main__':
 
     err_train = []
     err_test = []
+
+    test_err_train = []
+    test_err_test = []
+
     for i in range(1, 70):
-        boo = Boost(number_of_trees=i, gd_lr=0.1, gd_iterations=15)
+        boo = MyGradientBoostingRegressor(n_estimators=i, gd_lr=0.1, gd_iterations=15)
+        test_boo = GradientBoostingRegressor(n_estimators=i, loss='lad', criterion='mse')
         boo.fit(X_train, y_train)
+        test_boo.fit(X_train, y_train)
         if i % 50 == 0:
             print i
         err_train.append(np.linalg.norm(boo.predict(X_train) - y_train, ord=1))
         err_test.append(np.linalg.norm(boo.predict(X_test) - y_test, ord=1))
 
-    plt.plot(err_train, c='r')
-    plt.plot(err_test)
+        test_err_train.append(np.linalg.norm(test_boo.predict(X_train) - y_train, ord=1))
+        test_err_test.append(np.linalg.norm(test_boo.predict(X_test) - y_test, ord=1))
+
+    plt.plot(err_train, label='my_train')
+    plt.plot(err_test, label='my_test')
+
+    plt.plot(test_err_train, label='test_train')
+    plt.plot(test_err_test, label='test_test')
+
     plt.show()
