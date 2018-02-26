@@ -1,5 +1,67 @@
 import numpy as np
+import pandas as pd
+import time
 
+
+from numba import jit
+
+
+@jit
+def _find_best_split_feature(argsort_x, feature_num, feature_val, min_error, num, sorted_y, tmp, values_list,
+                             x):
+    l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum = _init_sums(sorted_y, values_list)
+    for val_num in values_list:
+        err = _get_mse(r_sum, r_sq_sum, r_size) + _get_mse(l_sum, l_sq_sum, l_size)
+
+        l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum = _change_sums(l_size, l_sq_sum, l_sum, r_size,
+                                                                        r_sq_sum, r_sum, sorted_y[val_num])
+        if not min_error or min_error > err:
+            feature_num = num
+            feature_val = x[argsort_x[val_num, num], num]
+            tmp = val_num
+            min_error = err
+    return feature_num, feature_val, min_error, tmp
+
+
+@jit
+def _init_sums(sorted_y, values_list):
+    r_size = sorted_y[:values_list[0]].size
+    l_size = sorted_y[values_list[0]:].size
+    r_sum = sorted_y[:values_list[0]].sum()
+    l_sum = sorted_y[values_list[0]:].sum()
+    r_sq_sum = (sorted_y[values_list[0]:] ** 2).sum()
+    l_sq_sum = (sorted_y[:values_list[0]] ** 2).sum()
+    return l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum
+
+
+@jit
+def _change_sums(l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum, changing_val):
+    r_sum += changing_val
+    l_sum -= changing_val
+    r_sq_sum += changing_val * changing_val
+    l_sq_sum -= changing_val * changing_val
+    r_size += 1
+    l_size -= 1
+    return l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum
+
+
+@jit
+def _get_mse(el_sum, sq_sum, num):
+    return (sq_sum - (el_sum * el_sum) / num) / num
+
+
+@jit
+def load_data():
+    all_data = pd.read_csv("auto-mpg.data",
+                           delim_whitespace=True, header=None,
+                           names=['mpg', 'cylinders', 'displacement', 'horsepower', 'weight', 'acceleration',
+                                  'model', 'origin', 'car_name'])
+    all_data = all_data.dropna()
+    y = np.array(all_data['mpg'])
+    columns = ['cylinders', 'displacement', 'horsepower', 'weight', 'acceleration',
+               'model', 'origin']
+    X = np.array(all_data[columns])
+    return X, y
 
 class MyDecisionTreeRegressor:
     NON_LEAF_TYPE = 0
@@ -10,44 +72,49 @@ class MyDecisionTreeRegressor:
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
 
-    def get_error(self, left_ids, right_ids):
-        m_l = left_ids.mean ()
-        m_r = right_ids.mean ()
-
-        return np.sum(left_ids - m_l) ** 2 / left_ids.size + np.sum(right_ids - m_r) ** 2 / right_ids.size
-
     def __find_threshold(self, x, y):
-        argsort_x = x.argsort (axis=0)
+        argsort_x = x.argsort(axis=0)
 
         min_error = None
         feature_num = None
         feature_val = None
+        tmp = None
 
-        for num in range(x.shape[0]):
-            sorted_y = y[argsort_x[num]]
-            for val_num in range(self.min_samples_split, x.shape[1] - self.min_samples_split):
-                err = self.get_error(sorted_y[:val_num], sorted_y[val_num:])
-                if not min_error or min_error > err:
-                    feature_num = num
-                    feature_val = val_num
+        values_list = range(self.min_samples_split, x.shape[0] - self.min_samples_split)
+        if len(values_list) == 0:
+            return None
+
+        for num in range(x.shape[1]):
+            sorted_y = y[argsort_x[:, num]]
+
+            feature_num, feature_val, min_error, tmp = _find_best_split_feature(argsort_x, feature_num,
+                                                                                feature_val, min_error, num,
+                                                                                sorted_y, tmp, values_list, x)
+
+        if min_error is None:
+            raise 1
 
         return feature_num, feature_val, \
-               x[argsort_x[feature_num]][:feature_val], \
-               x[argsort_x[feature_num]][feature_val:], \
-               y[argsort_x[feature_num]][:feature_val], \
-               y[argsort_x[feature_num]][feature_val:]
-
-    # def __div_samples (x, y, feature_num, feature_val):
+               x[argsort_x[:, feature_num]][:tmp], \
+               x[argsort_x[:, feature_num]][tmp:], \
+               y[argsort_x[:, feature_num]][:tmp], \
+               y[argsort_x[:, feature_num]][tmp:]
 
     def __fit_node(self, x, y, node_id, depth, pred_f=-1):
         if self.max_depth is not None and depth == self.max_depth:
             self.tree[node_id] = (self.LEAF_TYPE, np.mean(y))
             return
-        if self.min_samples_split is not None and x.shape[0] < self.min_samples_split:
+        if self.min_samples_split is not None and x.shape[0] <= self.min_samples_split:
             self.tree[node_id] = (self.LEAF_TYPE, np.mean(y))
             return
 
-        feature_num, feature_val, x_l, x_r, y_l, y_r = self.__find_threshold(x, y)
+        res = self.__find_threshold(x, y)
+        if res is None:
+            self.tree[node_id] = (self.LEAF_TYPE, np.mean(y))
+            return
+
+        feature_num, feature_val, x_l, x_r, y_l, y_r = res
+
         if y_l.size < self.min_samples_split or y_r.size < self.min_samples_split:
             self.tree[node_id] = (self.LEAF_TYPE, np.mean(y))
             return
@@ -63,12 +130,12 @@ class MyDecisionTreeRegressor:
         node = self.tree[node_id]
         if node[0] == self.__class__.NON_LEAF_TYPE:
             _, feature_num, feature_val = node
-            if x[feature_val] > feature_val:
+            if x[feature_num] > feature_val:
                 return self.__predict(x, 2 * node_id + 1)
             else:
                 return self.__predict(x, 2 * node_id + 2)
         else:
-            return node[2]
+            return node[1]
 
     def predict(self, X):
         return np.array([self.__predict(x, 0) for x in X])
@@ -76,3 +143,15 @@ class MyDecisionTreeRegressor:
     def fit_predict(self, x_train, y_train, predicted_x):
         self.fit(x_train, y_train)
         return self.predict(predicted_x)
+
+
+def tree_test():
+    X, y = load_data()
+    start_time = time.time()
+    for i in range(1000):
+        a_i = MyDecisionTreeRegressor(max_depth=3)
+        a_i.fit(X, y)
+    print time.time() - start_time
+
+
+tree_test()
