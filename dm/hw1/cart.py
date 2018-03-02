@@ -1,14 +1,17 @@
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
 from numba import jit
+from sklearn.tree import DecisionTreeRegressor
+import matplotlib.pyplot as plt
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.datasets import load_svmlight_file
 
 
 @jit
-def _find_best_split_feature(argsort_x, feature_num, feature_val, min_error, num, sorted_y, tmp, values_list,
-                             x):
-    l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum = _init_sums(sorted_y, values_list)
+def _find_best_split_feature(argsort_x, summ_all, sq_summ_all, num_all, feature_num, feature_val, min_error, num,
+                             sorted_y, tmp, values_list,
+                             x, error_all):
+    l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum = _init_sums(sorted_y, values_list, summ_all, sq_summ_all, num_all)
     for val_num in values_list:
         err = _get_mse(r_sum, r_sq_sum, r_size) + _get_mse(l_sum, l_sq_sum, l_size)
 
@@ -24,13 +27,13 @@ def _find_best_split_feature(argsort_x, feature_num, feature_val, min_error, num
 
 
 @jit
-def _init_sums(sorted_y, values_list):
+def _init_sums(sorted_y, values_list, summ_all, sq_summ_all, num_all):
     r_size = sorted_y[:values_list[0]].size
-    l_size = sorted_y[values_list[0]:].size
+    l_size = num_all - r_size
     r_sum = sorted_y[:values_list[0]].sum()
-    l_sum = sorted_y[values_list[0]:].sum()
+    l_sum = summ_all - r_sum
     r_sq_sum = (sorted_y[:values_list[0]] ** 2).sum()
-    l_sq_sum = (sorted_y[values_list[0]:] ** 2).sum()
+    l_sq_sum = sq_summ_all - r_sq_sum
     return l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum
 
 
@@ -57,10 +60,11 @@ class MyDecisionTreeRegressor:
     NON_LEAF_TYPE = 0
     LEAF_TYPE = 1
 
-    def __init__(self, min_samples_split=1, max_depth=None):
+    def __init__(self, min_samples_split=1, max_depth=None, min_impurity_decrease=0.):
         self.tree = dict()
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
+        self.min_impurity_decrease = min_impurity_decrease
 
     def __find_threshold(self, x, y):
         argsort_x = x.argsort(axis=0)
@@ -74,15 +78,25 @@ class MyDecisionTreeRegressor:
         if len(values_list) == 0:
             return None
 
+        summ_all = np.sum(y)
+        sq_summ_all = np.sum(y ** 2)
+        all_num = len(y)
+
+        all_err = _get_mse(summ_all, sq_summ_all, all_num)
+
         for num in range(x.shape[1]):
             sorted_y = y[argsort_x[:, num]]
 
-            feature_num, feature_val, min_error, tmp = _find_best_split_feature(argsort_x, feature_num,
+            feature_num, feature_val, min_error, tmp = _find_best_split_feature(argsort_x, summ_all, sq_summ_all,
+                                                                                all_num, feature_num,
                                                                                 feature_val, min_error, num,
-                                                                                sorted_y, tmp, values_list, x)
+                                                                                sorted_y, tmp, values_list, x, all_err)
 
         if min_error is None:
             raise 1
+
+        if all_err - min_error < self.min_impurity_decrease:
+            return None
 
         return feature_num, feature_val, \
                x[argsort_x[:, feature_num]][:tmp], \
@@ -121,11 +135,73 @@ class MyDecisionTreeRegressor:
             else:
                 return self.__predict(x, 2 * node_id + 2)
         else:
-            return node[1]
+            return node[1], node_id
 
     def predict(self, X):
-        return np.array([self.__predict(x, 0) for x in X])
+        return np.array([self.__predict(x, 0)[0] for x in X])
+
+    def predict_node(self, X):
+
+        ret_node = []
+        ret_val = np.zeros(X.shape[0])
+        for i, x in enumerate (X):
+            res = self.__predict(x, 0)
+            ret_node.append(res[1])
+            ret_val[i] = res[0]
+
+        return ret_val, ret_node
 
     def fit_predict(self, x_train, y_train, predicted_x):
         self.fit(x_train, y_train)
         return self.predict(predicted_x)
+
+
+def load_data_1():
+    all_data = pd.read_csv("auto-mpg.data",
+                           delim_whitespace=True, header=None,
+                           names=['mpg', 'cylinders', 'displacement', 'horsepower', 'weight', 'acceleration',
+                                  'model', 'origin', 'car_name'])
+    all_data = all_data.dropna()
+    y = np.array(all_data['mpg'])
+    columns = ['cylinders', 'displacement', 'horsepower', 'weight', 'acceleration',
+               'model', 'origin']
+    X = np.array(all_data[columns])
+    return train_test_split(X, y, test_size=0.33, random_state=42)
+
+
+def load_data_2():
+    X_train, y_train = load_svmlight_file('Regression dataset/reg.train.txt')
+    X_test, y_test = load_svmlight_file('Regression dataset/reg.test.txt')
+    return X_train.toarray(), X_test.toarray(), y_train, y_test
+
+
+def test():
+    X_train, X_test, y_train, y_test = load_data_2()
+
+    err = []
+    tr_err = []
+    test_err = []
+    tr_test_err = []
+
+    for i in range(1, 6):
+        print i
+        my = MyDecisionTreeRegressor(max_depth=i)
+        tree = DecisionTreeRegressor(max_depth=i)
+
+        tree.fit(X_train, y_train)
+        my.fit(X_train, y_train)
+
+        tr_err.append(np.linalg.norm(my.predict(X_train) - y_train))
+        err.append(np.linalg.norm(my.predict(X_test) - y_test))
+        test_err.append(np.linalg.norm(tree.predict(X_test) - y_test))
+        tr_test_err.append(np.linalg.norm(tree.predict(X_train) - y_train))
+
+    plt.plot(tr_err, label='my_train_error')
+    plt.plot(err, label='my_error')
+    plt.plot(tr_test_err, label='tree_train_error')
+    plt.plot(test_err, label='tree_error')
+    plt.legend()
+    plt.show()
+
+
+# test()

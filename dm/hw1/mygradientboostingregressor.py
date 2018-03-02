@@ -4,52 +4,77 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.datasets import load_svmlight_file
 
 from cart import MyDecisionTreeRegressor
 
 
 class MyGradientBoostingRegressor:
-    def __init__(self, n_estimators=10, gd_iterations=1000, gd_lr=0.00005):
-        self.h = 0
+    def __init__(self, n_estimators=10):
+        self.h = None
         self.n_estimators = n_estimators
         self.a = []
         self.b = []
-        self.gd_iterations = gd_iterations
-        self.gd_lr = gd_lr
-
-    def gd(self, df):
-        point = 1
-        for i in range(self.gd_iterations):
-            grad = df(point)
-            point = point - self.gd_lr * grad
-            if abs(self.gd_lr * grad) < 1e-10:
-                break
-        return point
+        self.tree_num = 0
+        self.med = 0
 
     def fit(self, X, y):
-        self.h = np.median(y)
-        h = self.h  # 1. init array h0
-        for tree_num in range(self.n_estimators):
-            g = np.sign(y - h)
-            # a_i = MyDecisionTreeRegressor(max_depth=3)
-            a_i = DecisionTreeRegressor()
-            a_i.fit(X, g)
-            self.a.append(a_i)
-            res = a_i.predict(X)
-            #             df = lambda x: np.sum (res * np.sign (y - (h + x * res)))
-            #             b_i = self.gd (df)
-            b_i = 1 * self.gd_lr ** (tree_num / 20.)
-            self.b.append(b_i)
-            h = h + b_i * res
+        self.fit_start(y)
+        while self.tree_num < self.n_estimators:
+            self.fit_tree(X, y)
+
+    def fit_start(self, y):
+        self.med = np.median(y)
+        self.h = np.ones(y.shape) * self.med
+
+    def fit_tree(self, X, y):
+        g = np.sign(y - self.h)
+        # a_i = MyDecisionTreeRegressor(max_depth=4)
+        a_i = DecisionTreeRegressor(max_depth=5)
+        a_i.fit(X, g)
+        self.a.append(a_i)
+        # _, ret_node = a_i.predict_node(X)
+        ret_node = a_i.predict(X)
+
+        print np.unique(ret_node)
+
+        for val in np.unique(ret_node):
+            index = [ret_node == val]
+            # print index
+            median = np.median((y - self.h)[index])
+            # print median
+            self.h[index] += median
+
+        # sorted = np.argsort(np.abs(res_val))
+        # all_sum = np.sum(np.abs(res_val))
+        # sum_l = 1
+        # index = 1
+        #
+        # sum_r = res_val[sorted[0]] / all_sum
+        # sum_l -= res_val[sorted[0]] / all_sum
+        #
+        # len_y = len(sorted)
+        #
+        # while (sum_l > 1. / 2 or sum_r > 1. / 2) and index < len_y:
+        #     print sum_l, sum_r
+        #     sum_r += abs(res_val[sorted[index]]) / all_sum
+        #     sum_l -= abs(res_val[sorted[index]]) / all_sum
+        #     index += 1
+        #
+        # real_index = sorted[index]
+        b_i = 1
+        self.b.append(b_i)
+        # self.h = self.h + b_i * res_val
+        self.tree_num += 1
 
     def predict(self, X):
-        res = np.ones(X.shape[0]) * self.h
+        res = np.ones(X.shape[0]) * self.med
         for tree_num in range(len(self.a)):
-            res += self.b[tree_num] * self.a[tree_num].predict(X)
+            res += self.a[tree_num].predict(X)
         return res
 
 
-def load_data():
+def load_data_1():
     all_data = pd.read_csv("auto-mpg.data",
                            delim_whitespace=True, header=None,
                            names=['mpg', 'cylinders', 'displacement', 'horsepower', 'weight', 'acceleration',
@@ -59,13 +84,18 @@ def load_data():
     columns = ['cylinders', 'displacement', 'horsepower', 'weight', 'acceleration',
                'model', 'origin']
     X = np.array(all_data[columns])
-    return X, y
+    return train_test_split(X, y, test_size=0.33, random_state=42)
+
+
+def load_data_2():
+    X_train, y_train = load_svmlight_file('Regression dataset/reg.train.txt')
+    X_test, y_test = load_svmlight_file('Regression dataset/reg.test.txt')
+    return X_train.toarray(), X_test.toarray(), y_train, y_test
 
 
 if __name__ == '__main__':
 
-    X, y = load_data()
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+    X_train, X_test, y_train, y_test = load_data_1()
 
     err_train = []
     err_test = []
@@ -73,13 +103,14 @@ if __name__ == '__main__':
     test_err_train = []
     test_err_test = []
 
-    for i in range(1, 70):
-        boo = MyGradientBoostingRegressor(n_estimators=i, gd_lr=0.1, gd_iterations=15)
+    boo = MyGradientBoostingRegressor(n_estimators=30)
+    boo.fit_start(y_train)
+
+    for i in range(1, 105):
         test_boo = GradientBoostingRegressor(n_estimators=i, loss='lad', criterion='mse')
-        boo.fit(X_train, y_train)
+        boo.fit_tree(X_train, y_train)
         test_boo.fit(X_train, y_train)
-        if i % 50 == 0:
-            print i
+        print i
         err_train.append(np.linalg.norm(boo.predict(X_train) - y_train, ord=1))
         err_test.append(np.linalg.norm(boo.predict(X_test) - y_test, ord=1))
 
