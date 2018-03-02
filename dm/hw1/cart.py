@@ -10,9 +10,13 @@ from sklearn.datasets import load_svmlight_file
 @jit
 def _find_best_split_feature(argsort_x, summ_all, sq_summ_all, num_all, feature_num, feature_val, min_error, num,
                              sorted_y, tmp, values_list,
-                             x, error_all):
+                             x):
     l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum = _init_sums(sorted_y, values_list, summ_all, sq_summ_all, num_all)
     for val_num in values_list:
+        if sorted_y[val_num] == sorted_y[val_num - 1]:
+            l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum = \
+                _change_sums(l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum, sorted_y[val_num])
+            continue
         err = _get_mse(r_sum, r_sq_sum, r_size) + _get_mse(l_sum, l_sq_sum, l_size)
 
         l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum = \
@@ -50,10 +54,7 @@ def _change_sums(l_size, l_sq_sum, l_sum, r_size, r_sq_sum, r_sum, changing_val)
 
 @jit
 def _get_mse(el_sum, sq_sum, num):
-    res = float(sq_sum) - (float(el_sum) * float(el_sum)) / float(num)
-    if res < 0 and abs(res) > 1e-7:
-        raise 1
-    return res
+    return sq_sum - (el_sum * el_sum) / float(num)
 
 
 class MyDecisionTreeRegressor:
@@ -74,7 +75,7 @@ class MyDecisionTreeRegressor:
         feature_val = None
         tmp = None
 
-        values_list = range(1, x.shape[0])
+        values_list = range(self.min_samples_split, x.shape[0] - self.min_samples_split)
         if len(values_list) == 0:
             return None
 
@@ -90,10 +91,10 @@ class MyDecisionTreeRegressor:
             feature_num, feature_val, min_error, tmp = _find_best_split_feature(argsort_x, summ_all, sq_summ_all,
                                                                                 all_num, feature_num,
                                                                                 feature_val, min_error, num,
-                                                                                sorted_y, tmp, values_list, x, all_err)
+                                                                                sorted_y, tmp, values_list, x)
 
         if min_error is None:
-            raise 1
+            return None
 
         if all_err - min_error < self.min_impurity_decrease:
             return None
@@ -104,7 +105,7 @@ class MyDecisionTreeRegressor:
                y[argsort_x[:, feature_num]][:tmp], \
                y[argsort_x[:, feature_num]][tmp:]
 
-    def __fit_node(self, x, y, node_id, depth, pred_f=-1):
+    def __fit_node(self, x, y, node_id, depth):
         if self.max_depth is not None and depth == self.max_depth:
             self.tree[node_id] = (self.LEAF_TYPE, np.mean(y))
             return
@@ -144,7 +145,7 @@ class MyDecisionTreeRegressor:
 
         ret_node = []
         ret_val = np.zeros(X.shape[0])
-        for i, x in enumerate (X):
+        for i, x in enumerate(X):
             res = self.__predict(x, 0)
             ret_node.append(res[1])
             ret_val[i] = res[0]
@@ -170,8 +171,8 @@ def load_data_1():
 
 
 def load_data_2():
-    X_train, y_train = load_svmlight_file('Regression dataset/reg.train.txt')
-    X_test, y_test = load_svmlight_file('Regression dataset/reg.test.txt')
+    X_train, y_train = load_svmlight_file('dataset/reg.train.txt')
+    X_test, y_test = load_svmlight_file('dataset/reg.test.txt')
     return X_train.toarray(), X_test.toarray(), y_train, y_test
 
 
@@ -183,7 +184,7 @@ def test():
     test_err = []
     tr_test_err = []
 
-    for i in range(1, 6):
+    for i in range(5, 6):
         print i
         my = MyDecisionTreeRegressor(max_depth=i)
         tree = DecisionTreeRegressor(max_depth=i)
@@ -202,6 +203,5 @@ def test():
     plt.plot(test_err, label='tree_error')
     plt.legend()
     plt.show()
-
 
 # test()
