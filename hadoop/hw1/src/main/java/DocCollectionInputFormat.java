@@ -148,6 +148,8 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             } catch (EOFException ignored) {
             }
 
+            System.out.println(al);
+
             int cur_split = 0;
             long split_size = 0;
             long offset = 0;
