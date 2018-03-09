@@ -24,7 +24,7 @@ class MyGradientBoostingRegressor:
         while self.tree_num < self.n_estimators:
             self.fit_tree(X, y)
             if self.verbose:
-                print 'trained trees:', self.tree_num
+                print 'tree num:', self.tree_num
 
     def fit_start(self, y):
         self.med = np.median(y)
@@ -112,6 +112,8 @@ if __name__ == '__main__':
     plt.plot(l1_test_err_test, label='test test')
     plt.fill_between(range(est_num), np.array(l1_test_err_test) - np.mean(l1_test_err_test) * 0.03,
                      np.array(l1_test_err_test) + np.mean(l1_test_err_test) * 0.03, alpha=0.1, color="g")
+    plt.fill_between(range(est_num), np.array(l1_test_err_train) - np.mean(l1_test_err_train) * 0.03,
+                     np.array(l1_test_err_train) + np.mean(l1_test_err_train) * 0.03, alpha=0.1, color="g")
     plt.xlabel('number of estimators')
     plt.ylabel('l1 error')
     plt.legend()

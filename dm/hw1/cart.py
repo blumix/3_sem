@@ -75,7 +75,7 @@ class MyDecisionTreeRegressor:
         feature_val = None
         tmp = None
 
-        values_list = range(self.min_samples_split, x.shape[0] - self.min_samples_split)
+        values_list = range(1, x.shape[0])
         if len(values_list) == 0:
             return None
 
@@ -131,7 +131,7 @@ class MyDecisionTreeRegressor:
         node = self.tree[node_id]
         if node[0] == self.__class__.NON_LEAF_TYPE:
             _, feature_num, feature_val = node
-            if x[feature_num] < feature_val:
+            if x[feature_num] <= feature_val:
                 return self.__predict(x, 2 * node_id + 1)
             else:
                 return self.__predict(x, 2 * node_id + 2)
@@ -156,52 +156,96 @@ class MyDecisionTreeRegressor:
         self.fit(x_train, y_train)
         return self.predict(predicted_x)
 
-
-def load_data_1():
-    all_data = pd.read_csv("auto-mpg.data",
-                           delim_whitespace=True, header=None,
-                           names=['mpg', 'cylinders', 'displacement', 'horsepower', 'weight', 'acceleration',
-                                  'model', 'origin', 'car_name'])
-    all_data = all_data.dropna()
-    y = np.array(all_data['mpg'])
-    columns = ['cylinders', 'displacement', 'horsepower', 'weight', 'acceleration',
-               'model', 'origin']
-    X = np.array(all_data[columns])
-    return train_test_split(X, y, test_size=0.33, random_state=42)
-
-
-def load_data_2():
-    X_train, y_train = load_svmlight_file('dataset/reg.train.txt')
-    X_test, y_test = load_svmlight_file('dataset/reg.test.txt')
-    return X_train.toarray(), X_test.toarray(), y_train, y_test
-
-
-def test():
-    X_train, X_test, y_train, y_test = load_data_2()
-
-    err = []
-    tr_err = []
-    test_err = []
-    tr_test_err = []
-
-    for i in range(5, 6):
-        print i
-        my = MyDecisionTreeRegressor(max_depth=i)
-        tree = DecisionTreeRegressor(max_depth=i)
-
-        tree.fit(X_train, y_train)
-        my.fit(X_train, y_train)
-
-        tr_err.append(np.linalg.norm(my.predict(X_train) - y_train))
-        err.append(np.linalg.norm(my.predict(X_test) - y_test))
-        test_err.append(np.linalg.norm(tree.predict(X_test) - y_test))
-        tr_test_err.append(np.linalg.norm(tree.predict(X_train) - y_train))
-
-    plt.plot(tr_err, label='my_train_error')
-    plt.plot(err, label='my_error')
-    plt.plot(tr_test_err, label='tree_train_error')
-    plt.plot(test_err, label='tree_error')
-    plt.legend()
-    plt.show()
-
+#
+# def load_data_1():
+#     all_data = pd.read_csv("auto-mpg.data",
+#                            delim_whitespace=True, header=None,
+#                            names=['mpg', 'cylinders', 'displacement', 'horsepower', 'weight', 'acceleration',
+#                                   'model', 'origin', 'car_name'])
+#     all_data = all_data.dropna()
+#     y = np.array(all_data['mpg'])
+#     columns = ['cylinders', 'displacement', 'horsepower', 'weight', 'acceleration',
+#                'model', 'origin']
+#     X = np.array(all_data[columns])
+#     return train_test_split(X, y, test_size=0.33, random_state=42)
+#
+#
+# def load_data_2():
+#     X_train, y_train = load_svmlight_file('dataset/reg.train.txt')
+#     X_test, y_test = load_svmlight_file('dataset/reg.test.txt')
+#     return X_train.toarray(), X_test.toarray(), y_train, y_test
+#
+# def load_data_3 ():
+#     rng = np.random.RandomState(1)
+#     X = np.sort(5 * rng.rand(8, 1), axis=0)
+#     y = np.sin(X).ravel()
+#     # y[::5] += 3 * (0.5 - rng.rand(16))
+#     return train_test_split(X, y, test_size=0.33, random_state=42)
+#
+#
+# def test():
+#     X_train, X_test, y_train, y_test = load_data_3()
+#
+#     err = []
+#     tr_err = []
+#     test_err = []
+#     tr_test_err = []
+#
+#     depth = 5
+#
+#     for i in range(1, depth):
+#         print i
+#         my = MyDecisionTreeRegressor(max_depth=i, min_samples_split=2)
+#         tree = DecisionTreeRegressor(max_depth=i, min_samples_split=2)
+#
+#         tree.fit(X_train, y_train)
+#         my.fit(X_train, y_train)
+#
+#         tr_err.append(np.linalg.norm(my.predict(X_train) - y_train))
+#         err.append(np.linalg.norm(my.predict(X_test) - y_test))
+#         test_err.append(np.linalg.norm(tree.predict(X_test) - y_test))
+#         tr_test_err.append(np.linalg.norm(tree.predict(X_train) - y_train))
+#         print tree.tree_.value
+#
+#     ran = range (1, depth)
+#     plt.plot(ran, tr_err, label='my_train_error')
+#     plt.plot(ran, err, label='my_error')
+#     plt.plot(ran, tr_test_err, label='tree_train_error')
+#     plt.plot(ran, test_err, label='tree_error')
+#     plt.legend()
+#     plt.show()
+#
 # test()
+#
+# #
+# def test_2 ():
+#     rng = np.random.RandomState(1)
+#     X = np.sort(5 * rng.rand(10, 1), axis=0)
+#     y = np.sin(X).ravel()
+#     # y[::5] += 3 * (0.5 - rng.rand(16))
+#
+#     # Fit regression model
+#     regr_1 = MyDecisionTreeRegressor(max_depth=1, min_samples_split=1)
+#     regr_2 = DecisionTreeRegressor(max_depth=1)
+#     regr_1.fit(X, y)
+#     regr_2.fit(X, y)
+#
+#     # Predict
+#     X_test = np.arange(0.0, 5.0, 0.01)[:, np.newaxis]
+#     y_1 = regr_1.predict(X_test)
+#     y_2 = regr_2.predict(X_test)
+#
+#     # Plot the results
+#     plt.figure()
+#     plt.scatter(X, y, s=20, edgecolor="black",
+#                 c="darkorange", label="data")
+#     plt.plot(X_test, y_1, color="cornflowerblue",
+#              label="my", linewidth=2)
+#     plt.plot(X_test, y_2, color="yellowgreen", label="sk", linewidth=2)
+#     plt.xlabel("data")
+#     plt.ylabel("target")
+#     plt.title("Decision Tree Regression")
+#     plt.legend()
+#     plt.show()
+#
+# # test_2()
