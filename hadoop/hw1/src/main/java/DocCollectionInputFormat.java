@@ -53,23 +53,21 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
         private void prepare_index(FileSplit fsplit, Path path, FileSystem fs, FSDataInputStream input_index) throws IOException {
             index_array = read_index(input_index);
-//            long start = fsplit.getStart();
+            start_file = fsplit.getStart();
 
-//            long offset = 0;
-//            while (doc_num < start) {
-//                offset += index_array.get(doc_num);
-//                doc_num++;
-//            }
-            n_files = index_array.size();
-            start_file = 0;
+            long offset = 0;
+            while (doc_num < start_file) {
+                offset += index_array.get(doc_num);
+                doc_num++;
+            }
+            n_files = fsplit.getLength();
 
-//            if (max_doc < 0)
-//                throw new IOException("max doc error");
+            if (max_doc < 0)
+                throw new IOException("max doc error");
 
             input_file = fs.open(path);
-            input_file.seek(0);
+            input_file.seek(offset);
 
-            max_doc = 1000000000;
             input_arr = new byte[(int) max_doc];
             result = new byte[(int) max_doc * 20];//?
         }
@@ -157,25 +155,24 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
                 index_file = index_file + ".idx";
             }
             FileSystem fs = path.getFileSystem(context.getConfiguration());
-            FSDataInputStream input_index = fs.open(new Path(index_file));
+            FSDataInputStream input_index = fs.open(new Path(path.getParent(), index_file));
             List<Integer> al = read_index(input_index);
-            System.out.println("here");
 
-//            int cur_split = 0;
-//            long split_size = 0;
-////            long offset = 0;
-//            for (Integer cur : al) {
-//                split_size += cur;
-////                cur_split++;
-////                long bytes_num_for_split = 1000000000;
-////                if (split_size > bytes_num_for_split) {
-////                    splits.add(new FileSplit(path, offset, cur_split, null));
-////                    offset += cur_split;
-////                    split_size = 0;
-////                    cur_split = 0;
-////                }
-//            }
-//            splits.add(new FileSplit(path, 0, split_size, null));
+            int cur_split = 0;
+            long split_size = 0;
+            long offset = 0;
+            for (Integer cur : al) {
+                split_size += cur;
+                cur_split++;
+                long bytes_num_for_split = 10000000;
+                if (split_size > bytes_num_for_split) {
+                    splits.add(new FileSplit(path, offset, cur_split, null));
+                    offset += cur_split;
+                    split_size = 0;
+                    cur_split = 0;
+                }
+            }
+            splits.add(new FileSplit(path, offset, cur_split, null));
         }
         return splits;
     }
