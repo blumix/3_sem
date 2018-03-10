@@ -23,11 +23,12 @@ import java.util.zip.Inflater;
 public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text> {
 
     private long max_doc = -1;
+//    private long number_of_docs_for_split = 50;
 
     public class DocRecordReader extends RecordReader<LongWritable, Text> {
-        FSDataInputStream input;
+        FSDataInputStream input_file;
         Text value;
-        ArrayList<Integer> al = new ArrayList<>();
+        List<Integer> index_array;
         byte[] input_arr;
         byte[] result;
         int doc_num;
@@ -46,24 +47,29 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
             FileSystem fs = path.getFileSystem(context.getConfiguration());
             FSDataInputStream input_index = fs.open(new Path(index_file));
-            List<Integer> al = read_index(input_index);
 
-            long start = fsplit.getStart();
+            prepare_index(fsplit, path, fs, input_index);
+        }
 
-            long offset = 0;
-            while (doc_num < start) {
-                offset += al.get(doc_num);
-                doc_num++;
-            }
-            n_files = fsplit.getStart();
-            start_file = fsplit.getStart();
+        private void prepare_index(FileSplit fsplit, Path path, FileSystem fs, FSDataInputStream input_index) throws IOException {
+            index_array = read_index(input_index);
+//            long start = fsplit.getStart();
 
-            if (max_doc < 0)
-                throw new IOException("max doc error");
+//            long offset = 0;
+//            while (doc_num < start) {
+//                offset += index_array.get(doc_num);
+//                doc_num++;
+//            }
+            n_files = index_array.size();
+            start_file = 0;
 
-            input = fs.open(path);
-            input.seek(offset);
+//            if (max_doc < 0)
+//                throw new IOException("max doc error");
 
+            input_file = fs.open(path);
+            input_file.seek(0);
+
+            max_doc = 1000000000;
             input_arr = new byte[(int) max_doc];
             result = new byte[(int) max_doc * 20];//?
         }
@@ -73,12 +79,12 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             if (doc_num >= n_files)
                 return false;
             try {
-                input.readFully(input_arr, 0, al.get(doc_num));
+                input_file.readFully(input_arr, 0, index_array.get(doc_num));
             } catch (IOException e) {
                 e.printStackTrace();
             }
             Inflater decompresser = new Inflater();
-            decompresser.setInput(input_arr, 0, al.get(doc_num));
+            decompresser.setInput(input_arr, 0, index_array.get(doc_num));
             int res_len = 0;
             try {
                 if ((res_len = decompresser.inflate(result)) > 150000 * 5)
@@ -94,7 +100,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
         @Override
         public LongWritable getCurrentKey() {
-            return new LongWritable(al.get(doc_num));
+            return new LongWritable(index_array.get(doc_num));
          }
 
         @Override
@@ -104,12 +110,12 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
         @Override
         public float getProgress() {
-            return (float) (doc_num - start_file) / n_files;
+            return (float) (doc_num ) / n_files;
         }
 
         @Override
         public void close() {
-            IOUtils.closeStream(input);
+            IOUtils.closeStream(input_file);
         }
 
     }
@@ -144,33 +150,32 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
         for (FileStatus status : listStatus(context)) {
             Path path = status.getPath();
-
             String index_file = path.getName();
-
             if (index_file.substring(index_file.length() - 4).equals(".idx")) {
                 continue;
             } else {
                 index_file = index_file + ".idx";
             }
-
             FileSystem fs = path.getFileSystem(context.getConfiguration());
             FSDataInputStream input_index = fs.open(new Path(index_file));
-
             List<Integer> al = read_index(input_index);
+            System.out.println("here");
 
-            int cur_split = 0;
+//            int cur_split = 0;
             long split_size = 0;
-            long offset = 0;
+//            long offset = 0;
             for (Integer cur : al) {
                 split_size += cur;
-                cur_split++;
-                long bytes_num_for_split = 1000000000;
-                if (split_size > bytes_num_for_split) {
-                    splits.add(new FileSplit(path, offset, cur_split, null));
-                    offset += cur_split;
-                    cur_split = 0;
-                }
+//                cur_split++;
+//                long bytes_num_for_split = 1000000000;
+//                if (split_size > bytes_num_for_split) {
+//                    splits.add(new FileSplit(path, offset, cur_split, null));
+//                    offset += cur_split;
+//                    split_size = 0;
+//                    cur_split = 0;
+//                }
             }
+//            splits.add(new FileSplit(path, 0, split_size, null));
         }
         return splits;
     }
