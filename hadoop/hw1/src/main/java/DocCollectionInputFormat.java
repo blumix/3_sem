@@ -1,3 +1,4 @@
+import com.google.common.io.LittleEndianDataInputStream;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -45,13 +46,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
             FileSystem fs = path.getFileSystem(context.getConfiguration());
             FSDataInputStream input_index = fs.open(new Path(index_file));
-
-            try {
-                while (true) {
-                    al.add(input_index.readInt());
-                }
-            } catch (EOFException ignored) {
-            }
+            List<Integer> al = read_index(input_index);
 
             long start = fsplit.getStart();
 
@@ -77,15 +72,22 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
         public boolean nextKeyValue() {
             if (doc_num >= n_files)
                 return false;
+            try {
+                input.readFully(input_arr, 0, al.get(doc_num));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             Inflater decompresser = new Inflater();
             decompresser.setInput(input_arr, 0, al.get(doc_num));
+            int res_len = 0;
             try {
-                decompresser.inflate(result);
+                if ((res_len = decompresser.inflate(result)) > 150000 * 5)
+                    System.out.println("decompress error");
             } catch (DataFormatException e) {
                 e.printStackTrace();
             }
             decompresser.end();
-            value = new Text(result);
+            value = new Text (new String(result, 0, res_len));
             doc_num++;
             return true;
         }
@@ -109,6 +111,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
         public void close() {
             IOUtils.closeStream(input);
         }
+
     }
 
     @Override
@@ -117,6 +120,22 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
         DocRecordReader reader = new DocRecordReader();
         reader.initialize(split, context);
         return reader;
+    }
+
+    private static List<Integer> read_index(FSDataInputStream index_file) throws IOException {
+        int max_doc = 0;
+        LittleEndianDataInputStream in = new LittleEndianDataInputStream(index_file);
+        List<Integer> al = new ArrayList<>();
+        try {
+            while (true){
+                int val = in.readInt();
+                if (val > max_doc)
+                    max_doc = val;
+                al.add(val);
+            }
+        } catch (EOFException ignored) {
+        }
+        return al;
     }
 
     @Override
@@ -137,18 +156,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             FileSystem fs = path.getFileSystem(context.getConfiguration());
             FSDataInputStream input_index = fs.open(new Path(index_file));
 
-            ArrayList<Integer> al = new ArrayList<>();
-            try {
-                while (true) {
-                    int val = input_index.readInt();
-                    if (val > max_doc)
-                        max_doc = val;
-                    al.add(val);
-                }
-            } catch (EOFException ignored) {
-            }
-
-            System.out.println(al);
+            List<Integer> al = read_index(input_index);
 
             int cur_split = 0;
             long split_size = 0;
@@ -156,7 +164,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             for (Integer cur : al) {
                 split_size += cur;
                 cur_split++;
-                long bytes_num_for_split = 100000000;
+                long bytes_num_for_split = 1000000000;
                 if (split_size > bytes_num_for_split) {
                     splits.add(new FileSplit(path, offset, cur_split, null));
                     offset += cur_split;
