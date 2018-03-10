@@ -46,6 +46,7 @@ public class WordCountJob extends Configured implements Tool {
         job.setJarByClass(WordCountJob.class);
         job.setJobName(WordCountJob.class.getCanonicalName());
 
+        job.setInputFormatClass(DocCollectionInputFormat.class);
         DocCollectionInputFormat.addInputPath(job, new Path(input));
         FileOutputFormat.setOutputPath(job, new Path(output));
 
