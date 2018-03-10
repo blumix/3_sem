@@ -163,18 +163,18 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
 //            int cur_split = 0;
 //            long split_size = 0;
-//            long offset = 0;
+////            long offset = 0;
 //            for (Integer cur : al) {
 //                split_size += cur;
-//                cur_split++;
-//                long bytes_num_for_split = 1000000000;
-//                if (split_size > bytes_num_for_split) {
-//                    splits.add(new FileSplit(path, offset, cur_split, null));
-//                    offset += cur_split;
-//                    split_size = 0;
-//                    cur_split = 0;
-//                }
-            }
+////                cur_split++;
+////                long bytes_num_for_split = 1000000000;
+////                if (split_size > bytes_num_for_split) {
+////                    splits.add(new FileSplit(path, offset, cur_split, null));
+////                    offset += cur_split;
+////                    split_size = 0;
+////                    cur_split = 0;
+////                }
+//            }
 //            splits.add(new FileSplit(path, 0, split_size, null));
         }
         return splits;
