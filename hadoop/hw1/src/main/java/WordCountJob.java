@@ -22,8 +22,7 @@ public class WordCountJob extends Configured implements Tool {
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
             String line = value.toString();
             // split by space symbols (space, tab, ...)
-            Set<String> mySet = new HashSet<>(Arrays.asList(line.split("\\p{L}+")));
-            for(String word: mySet)
+            for(String word: line.split("[^\\p{L}+]"))
                 context.write(new Text(word), one);
         }
     }
@@ -35,7 +34,6 @@ public class WordCountJob extends Configured implements Tool {
             for(IntWritable ignored : nums) {
                 sum += 1;
             }
-
             // produce pairs of "word" <-> amount
             context.write(word, new IntWritable(sum));
         }

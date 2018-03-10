@@ -22,7 +22,7 @@ import java.util.zip.Inflater;
 
 public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text> {
 
-    private long max_doc = -1;
+    private long max_doc = 106534;
 //    private long number_of_docs_for_split = 50;
 
     public class DocRecordReader extends RecordReader<LongWritable, Text> {
@@ -46,7 +46,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             index_file = index_file + ".idx";
 
             FileSystem fs = path.getFileSystem(context.getConfiguration());
-            FSDataInputStream input_index = fs.open(new Path(index_file));
+            FSDataInputStream input_index = fs.open(new Path(path.getParent(), index_file));
 
             prepare_index(fsplit, path, fs, input_index);
         }
@@ -76,7 +76,10 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
         public boolean nextKeyValue() {
             if (doc_num >= n_files)
                 return false;
+
+//            System.out.println("Doc num:" + doc_num + ", N files:" + n_files);
             try {
+
                 input_file.readFully(input_arr, 0, index_array.get(doc_num));
             } catch (IOException e) {
                 e.printStackTrace();
@@ -91,14 +94,17 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
                 e.printStackTrace();
             }
             decompresser.end();
-            value = new Text (new String(result, 0, res_len));
+
+            String res_str = new String(result, 0, res_len);
+//            System.out.println(res_str);
+            value = new Text (res_str);
             doc_num++;
             return true;
         }
 
         @Override
         public LongWritable getCurrentKey() {
-            return new LongWritable(index_array.get(doc_num));
+            return new LongWritable(index_array.get(doc_num - 1));
          }
 
         @Override
@@ -163,8 +169,10 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             long offset = 0;
             for (Integer cur : al) {
                 split_size += cur;
+                if (cur > max_doc)
+                    max_doc = cur;
                 cur_split++;
-                long bytes_num_for_split = 10000000;
+                long bytes_num_for_split = 100000000;
                 if (split_size > bytes_num_for_split) {
                     splits.add(new FileSplit(path, offset, cur_split, null));
                     offset += cur_split;
@@ -173,6 +181,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
                 }
             }
             splits.add(new FileSplit(path, offset, cur_split, null));
+//            System.out.println(max_doc);
         }
         return splits;
     }
