@@ -43,6 +43,7 @@ public class WordCountJob extends Configured implements Tool {
 
     private Job getJobConf(String input, String output) throws IOException {
         Job job = Job.getInstance(getConf());
+
         job.setJarByClass(WordCountJob.class);
         job.setJobName(WordCountJob.class.getCanonicalName());
 
@@ -51,13 +52,30 @@ public class WordCountJob extends Configured implements Tool {
         FileOutputFormat.setOutputPath(job, new Path(output));
 
         job.setMapperClass(WordCountMapper.class);
-        job.setCombinerClass(WordCountReducer.class);
         job.setReducerClass(WordCountReducer.class);
 
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(IntWritable.class);
 
         return job;
+
+//
+//        Job job = Job.getInstance(getConf());
+//        job.setJarByClass(WordCountJob.class);
+//        job.setJobName(WordCountJob.class.getCanonicalName());
+//
+//        job.setInputFormatClass(DocCollectionInputFormat.class);
+//        DocCollectionInputFormat.addInputPath(job, new Path(input));
+//        FileOutputFormat.setOutputPath(job, new Path(output));
+//
+//        job.setMapperClass(WordCountMapper.class);
+//        job.setCombinerClass(WordCountReducer.class);
+//        job.setReducerClass(WordCountReducer.class);
+//
+//        job.setOutputKeyClass(Text.class);
+//        job.setOutputValueClass(IntWritable.class);
+//
+//        return job;
     }
 
     @Override
