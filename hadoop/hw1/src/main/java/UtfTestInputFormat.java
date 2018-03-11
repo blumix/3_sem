@@ -38,7 +38,7 @@ public class UtfTestInputFormat extends FileInputFormat<LongWritable, Text> {
 
             FileSystem fs = path.getFileSystem(context.getConfiguration());
             input_file = fs.open(path);
-            lines = input_file.readUTF();
+            lines = input_file.toString();
         }
 
         @Override
