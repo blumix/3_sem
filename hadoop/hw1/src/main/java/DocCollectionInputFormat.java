@@ -22,8 +22,7 @@ import java.util.zip.Inflater;
 
 public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text> {
 
-    private long max_doc = 106534;
-//    private long number_of_docs_for_split = 50;
+    private long max_doc = 500000;
 
     public class DocRecordReader extends RecordReader<LongWritable, Text> {
         FSDataInputStream input_file;
@@ -182,7 +181,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
                 }
             }
             splits.add(new FileSplit(path, offset, cur_split, null));
-//            System.out.println(max_doc);
+            System.out.println(max_doc);
         }
         return splits;
     }
