@@ -22,7 +22,7 @@ import java.util.zip.Inflater;
 
 public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text> {
 
-    private long max_doc = 500000;
+    private long max_doc = 5000000;
 
     public class DocRecordReader extends RecordReader<LongWritable, Text> {
         FSDataInputStream input_file;
@@ -48,6 +48,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             FSDataInputStream input_index = fs.open(new Path(path.getParent(), index_file));
 
             prepare_index(fsplit, path, fs, input_index);
+            System.out.println("Here?");
         }
 
         private void prepare_index(FileSplit fsplit, Path path, FileSystem fs, FSDataInputStream input_index) throws IOException {
@@ -181,7 +182,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
                 }
             }
             splits.add(new FileSplit(path, offset, cur_split, null));
-            System.out.println(max_doc);
+//            System.out.println(max_doc);
         }
         return splits;
     }
