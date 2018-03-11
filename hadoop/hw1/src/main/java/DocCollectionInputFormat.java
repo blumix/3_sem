@@ -172,7 +172,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
                 if (cur > max_doc)
                     max_doc = cur;
                 cur_split++;
-                long bytes_num_for_split = 1000000000;
+                long bytes_num_for_split = (long) 1.28e+8;
                 if (split_size > bytes_num_for_split) {
                     splits.add(new FileSplit(path, offset, cur_split, null));
                     offset += cur_split;
