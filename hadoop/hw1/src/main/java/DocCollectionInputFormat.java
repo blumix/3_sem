@@ -96,7 +96,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             decompresser.end();
 
             String res_str = new String(result, 0, res_len);
-//            System.out.println(res_str);
+            System.out.println(res_str);
             value = new Text (res_str);
             doc_num++;
             return true;
@@ -109,7 +109,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
         @Override
         public Text getCurrentValue() {
-            System.out.println(value);
+//            System.out.println(value);
             return value;
         }
 
