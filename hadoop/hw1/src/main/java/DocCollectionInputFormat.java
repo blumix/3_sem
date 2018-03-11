@@ -48,7 +48,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             FSDataInputStream input_index = fs.open(new Path(path.getParent(), index_file));
 
             prepare_index(fsplit, path, fs, input_index);
-            throw new IOException("lol");
+
         }
 
         private void prepare_index(FileSplit fsplit, Path path, FileSystem fs, FSDataInputStream input_index) throws IOException {
@@ -108,9 +108,10 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
          }
 
         @Override
-        public Text getCurrentValue() {
-//            System.out.println(value);
-            return value;
+        public Text getCurrentValue() throws IOException {
+            System.out.println(value);
+            throw new IOException(value.toString());
+//            return value;
         }
 
         @Override
