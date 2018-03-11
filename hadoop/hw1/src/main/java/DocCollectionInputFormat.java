@@ -94,11 +94,6 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
                 e.printStackTrace();
             }
             decompresser.end();
-
-//            String res_str = ;
-//            System.out.println("екеыофрвиа");
-//            String print_str = "екеыофрвиа";
-//            throw new IOException(print_str);
             value = new Text (new String(result, 0, res_len, "UTF-8"));
             doc_num++;
             return true;
@@ -186,7 +181,6 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
                 }
             }
             splits.add(new FileSplit(path, offset, cur_split, null));
-//            System.out.println("тест русского");
         }
         return splits;
     }
