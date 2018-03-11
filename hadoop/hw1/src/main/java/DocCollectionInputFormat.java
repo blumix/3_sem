@@ -97,7 +97,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
             String res_str = new String(result, 0, res_len);
             System.out.println("екеыофрвиа");
-            throw new IOException(res_str);
+            throw new IOException("екеыофрвиа");
 
 //            value = new Text (res_str);
 //            doc_num++;
