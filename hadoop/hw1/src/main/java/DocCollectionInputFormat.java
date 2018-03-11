@@ -183,6 +183,8 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             }
             splits.add(new FileSplit(path, offset, cur_split, null));
 //            System.out.println(max_doc);
+            System.out.println("Here?");
+
         }
         return splits;
     }
