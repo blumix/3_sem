@@ -13,8 +13,10 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
+import java.io.BufferedReader;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.DataFormatException;
@@ -37,8 +39,13 @@ public class UtfTestInputFormat extends FileInputFormat<LongWritable, Text> {
             Path path = fsplit.getPath();
 
             FileSystem fs = path.getFileSystem(context.getConfiguration());
-            input_file = fs.open(path);
-            lines = input_file.toString();
+            BufferedReader br=new BufferedReader(new InputStreamReader(fs.open(path)));
+            try {
+                lines=br.readLine();
+            } finally {
+                // you should close out the BufferedReader
+                br.close();
+            }
         }
 
         @Override
