@@ -1,4 +1,5 @@
 import com.google.common.io.LittleEndianDataInputStream;
+import org.apache.commons.configuration.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -172,7 +173,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
                 if (cur > max_doc)
                     max_doc = cur;
                 cur_split++;
-                long bytes_num_for_split = 1000000000;
+                long bytes_num_for_split = getNumBytesPerSplit (context.getConfiguration());
                 if (split_size > bytes_num_for_split) {
                     splits.add(new FileSplit(path, offset, cur_split, null));
                     offset += cur_split;
@@ -184,4 +185,10 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
         }
         return splits;
     }
+    public static final String BYTES_PER_MAP = "mapreduce.input.bmp.bytes_per_map";
+
+    public static long getNumBytesPerSplit(Configuration conf) {
+        return  conf.getLong(BYTES_PER_MAP, 134217728);
+    }
+
 }
