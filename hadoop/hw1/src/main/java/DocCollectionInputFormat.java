@@ -48,6 +48,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             FSDataInputStream input_index = fs.open(new Path(path.getParent(), index_file));
 
             prepare_index(fsplit, path, fs, input_index);
+            throw new IOException("lol");
         }
 
         private void prepare_index(FileSplit fsplit, Path path, FileSystem fs, FSDataInputStream input_index) throws IOException {
@@ -183,8 +184,6 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             }
             splits.add(new FileSplit(path, offset, cur_split, null));
 //            System.out.println(max_doc);
-            System.out.println("Here?");
-
         }
         return splits;
     }
