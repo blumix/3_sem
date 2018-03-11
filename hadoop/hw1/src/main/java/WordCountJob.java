@@ -13,17 +13,21 @@ import org.apache.hadoop.util.ToolRunner;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.regex.MatchResult;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class WordCountJob extends Configured implements Tool {
     public static class WordCountMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
         static final IntWritable one = new IntWritable(1);
         @Override
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-            String line = value.toString().toLowerCase();
-//            System.out.println(line);
-//             split by space symbols (space, tab, ...)
-            Set<String> uniqueWords = new HashSet<>(Arrays.asList(line.split("[^\\p{L}]")));
+            Set<String> uniqueWords = Pattern.compile("\\p{L}+")
+                    .matcher(value.toString())
+                    .results()
+                    .map(MatchResult::group).collect(Collectors.toSet());
             for(String word: uniqueWords)
                 context.write(new Text(word), one);
         }
