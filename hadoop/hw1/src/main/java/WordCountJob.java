@@ -30,7 +30,7 @@ public class WordCountJob extends Configured implements Tool {
 
             Set<String> allMatches = new HashSet<>();
             Matcher m = Pattern.compile("\\p{L}+")
-                    .matcher(value.toString());
+                    .matcher(value.toString().toLowerCase());
             while (m.find()) {
                 allMatches.add(m.group());
             }
