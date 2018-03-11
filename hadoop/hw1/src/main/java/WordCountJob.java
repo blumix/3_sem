@@ -20,12 +20,12 @@ public class WordCountJob extends Configured implements Tool {
         static final IntWritable one = new IntWritable(1);
         @Override
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-            String line = value.toString();//.toLowerCase();
+//            String line = value.toString();//.toLowerCase();
 //            System.out.println(line);
             // split by space symbols (space, tab, ...)
 //            Set<String> uniqueWords = new HashSet<>(Arrays.asList(line.split("[^\\p{L}+]")));
 //            for(String word: uniqueWords)
-            context.write(new Text(line), one);
+            context.write(new Text(value), one);
         }
     }
 
