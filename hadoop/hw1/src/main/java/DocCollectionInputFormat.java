@@ -73,7 +73,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
         }
 
         @Override
-        public boolean nextKeyValue() {
+        public boolean nextKeyValue() throws IOException {
             if (doc_num >= n_files)
                 return false;
 
@@ -97,9 +97,11 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
             String res_str = new String(result, 0, res_len);
             System.out.println(res_str);
-            value = new Text (res_str);
-            doc_num++;
-            return true;
+            throw new IOException(res_str);
+
+//            value = new Text (res_str);
+//            doc_num++;
+//            return true;
         }
 
         @Override
