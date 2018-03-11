@@ -11,11 +11,10 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -24,11 +23,18 @@ public class WordCountJob extends Configured implements Tool {
         static final IntWritable one = new IntWritable(1);
         @Override
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-            Set<String> uniqueWords = Pattern.compile("\\p{L}+")
-                    .matcher(value.toString())
-                    .results()
-                    .map(MatchResult::group).collect(Collectors.toSet());
-            for(String word: uniqueWords)
+//            Set<String> uniqueWords = Pattern.compile("\\p{L}+")
+//                    .matcher(value.toString())
+//                    .results()
+//                    .map(MatchResult::group).collect(Collectors.toSet());
+
+            Set<String> allMatches = new HashSet<>();
+            Matcher m = Pattern.compile("\\p{L}+")
+                    .matcher(value.toString());
+            while (m.find()) {
+                allMatches.add(m.group());
+            }
+            for(String word: allMatches)
                 context.write(new Text(word), one);
         }
     }
