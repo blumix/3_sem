@@ -77,7 +77,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             if (doc_num >= n_files)
                 return false;
 
-            System.out.println("Doc num:" + doc_num + ", N files:" + n_files);
+//            System.out.println("Doc num:" + doc_num + ", N files:" + n_files);
             try {
 
                 input_file.readFully(input_arr, 0, index_array.get(doc_num));
