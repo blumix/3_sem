@@ -1,5 +1,4 @@
 import com.google.common.io.LittleEndianDataInputStream;
-import org.apache.commons.configuration.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -13,6 +12,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.apache.hadoop.conf.Configuration;
 
 import java.io.EOFException;
 import java.io.IOException;
