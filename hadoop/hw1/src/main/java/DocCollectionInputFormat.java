@@ -111,9 +111,9 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
         @Override
         public Text getCurrentValue() throws IOException {
-            System.out.println(value);
-            throw new IOException(value.toString());
-//            return value;
+//            System.out.println(value);
+//            throw new IOException(value.toString());
+            return value;
         }
 
         @Override
@@ -133,7 +133,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
             throws IOException {
         DocRecordReader reader = new DocRecordReader();
         reader.initialize(split, context);
-        System.out.println("Here?");
+//        System.out.println("Here?");
         return reader;
     }
 
@@ -186,7 +186,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
                 }
             }
             splits.add(new FileSplit(path, offset, cur_split, null));
-            System.out.println("тест русского");
+//            System.out.println("тест русского");
         }
         return splits;
     }
