@@ -109,6 +109,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
 
         @Override
         public Text getCurrentValue() {
+            System.out.println(value);
             return value;
         }
 
