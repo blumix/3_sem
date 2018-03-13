@@ -185,7 +185,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
         }
         return splits;
     }
-    public static final String BYTES_PER_MAP = "mapreduce.input.bmp.bytes_per_map";
+    public static final String BYTES_PER_MAP = "mapreduce.input.doc.bytes_per_map";
 
     public static long getNumBytesPerSplit(Configuration conf) {
         return  conf.getLong(BYTES_PER_MAP, 134217728);
