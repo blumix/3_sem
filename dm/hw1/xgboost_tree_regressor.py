@@ -80,7 +80,7 @@ class MyXGBoostTreeRegressor:
     NON_LEAF_TYPE = 0
     LEAF_TYPE = 1
 
-    def __init__(self, min_samples_split=1, max_depth=None, min_impurity_decrease=0., gamma=1, lambda_v=1):
+    def __init__(self, min_samples_split=1, max_depth=None, min_impurity_decrease=0., gamma=0.1, lambda_v=0.1):
         self.lambda_v = lambda_v
         self.gamma = gamma
         self.tree = dict()
@@ -143,7 +143,7 @@ class MyXGBoostTreeRegressor:
 
 
 class XGB:
-    def __init__(self, n_estimators=10, max_depth=3, learning_rate=0.1, verbose=False, gamma=1, lambda_v=1):
+    def __init__(self, n_estimators=10, max_depth=3, learning_rate=0.1, verbose=False, gamma=0.1, lambda_v=0.1):
         self.lambda_v = lambda_v
         self.gamma = gamma
         self.learning_rate = learning_rate
@@ -170,7 +170,7 @@ class XGB:
     def fit_tree(self, X, y):
         g = -2 * (y - self.h)
         s = 2.
-        a_i = MyXGBoostTreeRegressor(max_depth=self.max_depth)
+        a_i = MyXGBoostTreeRegressor(max_depth=self.max_depth, lambda_v=self.lambda_v, gamma=self.gamma)
         a_i.fit(X, g, s)
         # res = a_i.predict(X)
         b = self.learning_rate
@@ -216,14 +216,14 @@ def load_data_2():
 
 if __name__ == '__main__':
 
-    est_num = 30
+    est_num = 40
     X_train, X_test, y_train, y_test = load_data_1()
     l1_err_train = []
     l1_err_test = []
     l1_test_err_train = []
     l1_test_err_test = []
 
-    boo = XGB(n_estimators=est_num, verbose=True, learning_rate=0.1, max_depth=40)
+    boo = XGB(n_estimators=est_num, verbose=True, learning_rate=0.1, max_depth=40, lambda_v=0., gamma=0.)
     boo.fit(X_train, y_train)
     my_res_train = boo.staged_predict(X_train)
     my_res_test = boo.staged_predict(X_test)
