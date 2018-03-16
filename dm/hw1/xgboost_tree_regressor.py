@@ -1,3 +1,6 @@
+from distutils.core import setup
+from Cython.Build import cythonize
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -44,6 +47,10 @@ class SplitFinder:
 
         self.cur_Sr = self.values_list[0] * self.s
         self.cur_Sl = (self.number_of_elements - self.values_list[0]) * self.s
+
+        self.cur_gain_all = (self.cur_Gl + self.cur_Gr) * (self.cur_Gl + self.cur_Gr) / (
+                self.cur_Sl + self.cur_Sr + self.lambda_v)
+
         for val_num in self.values_list:
             if sorted_x[val_num] == sorted_x[val_num - 1]:
                 self.update_sum(sorted_g, val_num)
@@ -57,15 +64,18 @@ class SplitFinder:
                 self.feature_val = (sorted_x[val_num - 1] + sorted_x[val_num]) / 2.
                 self.splitting_number = val_num
                 self.max_gain = gain
+                self.l_gain = self.l_gain_cur
+                self.r_gain = self.r_gain_cur
+
                 self.Gr = self.cur_Gr
                 self.Gl = self.cur_Gl
                 self.Sr = self.cur_Sr
                 self.Sl = self.cur_Sl
 
     def calculate_gain(self):
-        gain = self.cur_Gl * self.cur_Gl / (self.cur_Sl + self.lambda_v) + self.cur_Gr * self.cur_Gr / (
-                self.cur_Sr + self.lambda_v) - (self.cur_Gl + self.cur_Gr) * (self.cur_Gl + self.cur_Gr) / (
-                       self.cur_Sl + self.cur_Sr + self.lambda_v) - self.gamma
+        self.l_gain_cur = self.cur_Gl * self.cur_Gl / (self.cur_Sl + self.lambda_v)
+        self.r_gain_cur = self.cur_Gr * self.cur_Gr / (self.cur_Sr + self.lambda_v)
+        gain = self.l_gain_cur + self.r_gain_cur - self.cur_gain_all - self.gamma
         return gain
 
     def update_sum(self, sorted_g, val_num):
@@ -98,20 +108,29 @@ class MyXGBoostTreeRegressor:
 
         sf = SplitFinder(x, g, s, lambda_v=self.lambda_v, gamma=self.gamma)
         sf.find_best_split()
-        if sf.max_gain is None or sf.max_gain < 0:
+        if sf.max_gain is None:
             self.tree[node_id] = (self.LEAF_TYPE, - g.sum() / (s * len(g) + self.lambda_v))
             return
 
         sorted_field = sf.argsort_x[:, sf.feature_num]
-        self.tree[node_id] = (self.NON_LEAF_TYPE, sf.feature_num, sf.feature_val)
+        self.tree[node_id] = (
+            self.NON_LEAF_TYPE, sf.feature_num, sf.feature_val)
 
         x_l = x[sorted_field][:sf.splitting_number]
         g_l = g[sorted_field][:sf.splitting_number]
-        self.__fit_node(x_l, g_l, s, 2 * node_id + 1, depth + 1)
+        res_1 = self.__fit_node(x_l, g_l, s, 2 * node_id + 1, depth + 1)
 
         x_r = x[sorted_field][sf.splitting_number:]
         g_r = g[sorted_field][sf.splitting_number:]
-        self.__fit_node(x_r, g_r, s, 2 * node_id + 2, depth + 1)
+        res_2 = self.__fit_node(x_r, g_r, s, 2 * node_id + 2, depth + 1)
+
+        if res_1 is None and res_2 is None:
+            if sf.max_gain < 0:
+                # print "removed node:", node_id, "gain:", sf.max_gain
+                self.tree[node_id] = (self.LEAF_TYPE, - g.sum() / (s * len(g) + self.lambda_v))
+                return
+
+        return sf.max_gain
 
     def fit(self, x, g, s):
         self.__fit_node(x, g, s, 0, 0)
@@ -143,7 +162,7 @@ class MyXGBoostTreeRegressor:
 
 
 class XGB:
-    def __init__(self, n_estimators=10, max_depth=3, learning_rate=0.1, verbose=False, gamma=0.1, lambda_v=0.1):
+    def __init__(self, n_estimators=10, max_depth=5, learning_rate=0.1, verbose=False, gamma=0.1, lambda_v=0.1):
         self.lambda_v = lambda_v
         self.gamma = gamma
         self.learning_rate = learning_rate
@@ -155,6 +174,7 @@ class XGB:
         self.tree_num = 0
         self.med = 0
         self.b = []
+        self.grad_norm = []
 
     def fit(self, X, y):
         self.fit_start(y)
@@ -168,28 +188,30 @@ class XGB:
         self.h = np.ones(y.shape) * self.med
 
     def fit_tree(self, X, y):
-        g = -2 * (y - self.h)
-        s = 2.
+        g = - (y - self.h) #* ((self.n_estimators + 5 * self.tree_num) / float(self.n_estimators))
+        # self.grad_norm.append ( np.linalg.norm(g))
+        s = 1.
         a_i = MyXGBoostTreeRegressor(max_depth=self.max_depth, lambda_v=self.lambda_v, gamma=self.gamma)
         a_i.fit(X, g, s)
         # res = a_i.predict(X)
+        # print np.linalg.norm(res)
         b = self.learning_rate
         self.b.append(b)
         self.trees.append(a_i)
-        self.h = self.h - b * a_i.predict(X)
+        self.h = self.h + b * a_i.predict(X)
         self.tree_num += 1
 
     def predict(self, X):
         res = np.ones(X.shape[0]) * self.med
         for tree in self.trees:
-            res += tree.predict(X)
+            res += tree.predict(X) * self.learning_rate
         return res
 
     def staged_predict(self, X):
         single_res = np.ones(X.shape[0]) * self.med
         ret = [np.copy(single_res)]
         for i, tree in enumerate(self.trees):
-            single_res += tree.predict(X) * self.learning_rate * self.b[i]
+            single_res += tree.predict(X) * self.b[i]
             temp = np.copy(single_res)
             ret.append(temp)
         return ret
@@ -216,19 +238,20 @@ def load_data_2():
 
 if __name__ == '__main__':
 
-    est_num = 40
-    X_train, X_test, y_train, y_test = load_data_1()
+    est_num = 600
+    X_train, X_test, y_train, y_test = load_data_2()
     l1_err_train = []
     l1_err_test = []
     l1_test_err_train = []
     l1_test_err_test = []
 
-    boo = XGB(n_estimators=est_num, verbose=True, learning_rate=0.1, max_depth=40, lambda_v=0., gamma=0.)
+    boo = XGB(n_estimators=est_num, verbose=True, learning_rate=0.1, max_depth=5, lambda_v=0.1, gamma=0.1)
+
     boo.fit(X_train, y_train)
     my_res_train = boo.staged_predict(X_train)
     my_res_test = boo.staged_predict(X_test)
 
-    test_boo = GradientBoostingRegressor(n_estimators=est_num, loss='lad', criterion='mse')
+    test_boo = GradientBoostingRegressor(n_estimators=est_num, criterion='mse')
     test_boo.fit(X_train, y_train)
     res_train = list(test_boo.staged_predict(X_train))
     res_test = list(test_boo.staged_predict(X_test))
@@ -239,7 +262,7 @@ if __name__ == '__main__':
         l1_test_err_train.append(np.linalg.norm(res_train[i] - y_train, ord=2))
         l1_test_err_test.append(np.linalg.norm(res_test[i] - y_test, ord=2))
 
-    # plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(20, 10))
     plt.plot(l1_err_train, label='my train')
     plt.plot(l1_err_test, label='my test')
     plt.plot(l1_test_err_train, label='test train')
@@ -249,6 +272,8 @@ if __name__ == '__main__':
     plt.fill_between(range(est_num), np.array(l1_test_err_train) - np.mean(l1_test_err_train) * 0.03,
                      np.array(l1_test_err_train) + np.mean(l1_test_err_train) * 0.03, alpha=0.1, color="g")
     plt.xlabel('number of estimators')
-    plt.ylabel('l1 error')
+    plt.ylabel('l2 error')
     plt.legend()
+
+    # plt.plot(boo.grad_norm)
     plt.show()
