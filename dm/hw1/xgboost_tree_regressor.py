@@ -1,12 +1,11 @@
-from distutils.core import setup
-from Cython.Build import cythonize
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.datasets import load_svmlight_file
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
+
+from xgboost import XGBRegressor
 
 
 class SplitFinder:
@@ -188,7 +187,7 @@ class XGB:
         self.h = np.ones(y.shape) * self.med
 
     def fit_tree(self, X, y):
-        g = - (y - self.h) #* ((self.n_estimators + 5 * self.tree_num) / float(self.n_estimators))
+        g = - (y - self.h)  # * ((self.n_estimators + 5 * self.tree_num) / float(self.n_estimators))
         # self.grad_norm.append ( np.linalg.norm(g))
         s = 1.
         a_i = MyXGBoostTreeRegressor(max_depth=self.max_depth, lambda_v=self.lambda_v, gamma=self.gamma)
@@ -251,16 +250,17 @@ if __name__ == '__main__':
     my_res_train = boo.staged_predict(X_train)
     my_res_test = boo.staged_predict(X_test)
 
-    test_boo = GradientBoostingRegressor(n_estimators=est_num, criterion='mse')
+    test_boo = XGBRegressor(n_estimators=est_num, max_depth=5, learning_rate=0.1, reg_lambda=0.1, reg_alpha=0.1)
     test_boo.fit(X_train, y_train)
-    res_train = list(test_boo.staged_predict(X_train))
-    res_test = list(test_boo.staged_predict(X_test))
 
     for i in range(est_num):
+        res_train = test_boo.predict(X_train, ntree_limit=i)
+        res_test = test_boo.predict(X_test, ntree_limit=i)
+
         l1_err_train.append(np.linalg.norm(my_res_train[i] - y_train, ord=2))
         l1_err_test.append(np.linalg.norm(my_res_test[i] - y_test, ord=2))
-        l1_test_err_train.append(np.linalg.norm(res_train[i] - y_train, ord=2))
-        l1_test_err_test.append(np.linalg.norm(res_test[i] - y_test, ord=2))
+        l1_test_err_train.append(np.linalg.norm(res_train - y_train, ord=2))
+        l1_test_err_test.append(np.linalg.norm(res_test - y_test, ord=2))
 
     plt.figure(figsize=(20, 10))
     plt.plot(l1_err_train, label='my train')
