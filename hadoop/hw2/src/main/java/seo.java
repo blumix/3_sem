@@ -115,7 +115,6 @@ public class seo extends Configured implements Tool {
         job.setSortComparatorClass(KeyComparator.class);
         job.setGroupingComparatorClass(Grouper.class);
 
-        // выход mapper-а != вывод reducer-а, поэтому ставим отдельно
         job.setMapOutputKeyClass(TextTextPair.class);
         job.setMapOutputValueClass(IntWritable.class);
 
