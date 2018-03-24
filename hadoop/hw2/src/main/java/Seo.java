@@ -98,9 +98,12 @@ public class Seo extends Configured implements Tool {
                         most_common_quest = key.getSecond().toString();
                     }
                     cur_string = key.getSecond ().toString();
+                    current = 0;
                 }
                 current++;
             }
+            if (most_common_num == 0)
+                return;
             context.write(new Text(most_common_quest), new IntWritable(most_common_num));
         }
     }
