@@ -81,10 +81,13 @@ public class Seo extends Configured implements Tool {
     }
 
 
+    public static final String MIN_CLICKS = "mapreduce.reduce.seo.minclicks";
 
     public static class WordCountReducer extends Reducer<TextTextPair, IntWritable, Text, IntWritable> {
         @Override
         protected void reduce(TextTextPair key, Iterable<IntWritable> nums, Context context) throws IOException, InterruptedException {
+
+            long min_clicks = context.getConfiguration().getLong(MIN_CLICKS, 1);
 
             nums.iterator().next().get();
             int most_common_num = 1;
@@ -102,8 +105,8 @@ public class Seo extends Configured implements Tool {
                 }
                 current++;
             }
-
-            context.write(new Text(key.getFirst().toString() +"\t"+ most_common_quest), new IntWritable(most_common_num));
+            if (most_common_num >= min_clicks)
+                context.write(new Text(key.getFirst().toString() +"\t"+ most_common_quest), new IntWritable(most_common_num));
         }
     }
 
