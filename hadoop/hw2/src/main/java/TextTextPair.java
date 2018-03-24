@@ -11,11 +11,17 @@ public class TextTextPair implements WritableComparable<TextTextPair> {
     private Text first;
     private Text second;
 
+    public TextTextPair() {
+        set(new Text(), new Text());
+    }
 
-    TextTextPair(String first, String second) {
+    public TextTextPair(String first, String second) {
         set(new Text(first), new Text(second));
     }
 
+    public TextTextPair(Text first, Text second) {
+        set(first, second);
+    }
 
     private void set(Text a, Text b) {
         first = a;
