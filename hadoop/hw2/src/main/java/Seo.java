@@ -81,7 +81,7 @@ public class Seo extends Configured implements Tool {
     }
 
 
-    public static final String MIN_CLICKS = "mapreduce.reduce.seo.minclicks";
+    static final String MIN_CLICKS = "mapreduce.reduce.seo.minclicks";
 
     public static class WordCountReducer extends Reducer<TextTextPair, IntWritable, Text, IntWritable> {
         @Override
