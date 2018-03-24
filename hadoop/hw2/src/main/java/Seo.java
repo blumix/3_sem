@@ -61,7 +61,7 @@ public class Seo extends Configured implements Tool {
 
             String[] input = value.toString().split ("\t");
             String host;
-            LOG.debug(input[1]);
+//            LOG.debug(input[1]);
             try {
                 host = getDomainName (input[1]);
             } catch (URISyntaxException | NullPointerException e) {
@@ -104,7 +104,7 @@ public class Seo extends Configured implements Tool {
             }
             if (most_common_num == 0)
                 return;
-            context.write(new Text(most_common_quest), new IntWritable(most_common_num));
+            context.write(new Text(key.toString() +"\t"+ most_common_quest), new IntWritable(most_common_num));
         }
     }
 
