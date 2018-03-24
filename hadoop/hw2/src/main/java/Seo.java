@@ -88,9 +88,9 @@ public class Seo extends Configured implements Tool {
 
             int most_common_num = 0;
             String most_common_quest = "";
-
-            int current = 0;
-            String cur_string = "";
+            nums.iterator().next().get();
+            int current = 1;
+            String cur_string = key.getSecond ().toString();
             for(IntWritable ignored : nums) {
                 if (!cur_string.equals(key.getSecond ().toString())){
                     if (current > most_common_num){
@@ -102,8 +102,7 @@ public class Seo extends Configured implements Tool {
                 }
                 current++;
             }
-            if (most_common_num == 0)
-                return;
+
             context.write(new Text(key.getFirst().toString() +"\t"+ most_common_quest), new IntWritable(most_common_num));
         }
     }
