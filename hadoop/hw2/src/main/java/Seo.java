@@ -104,7 +104,7 @@ public class Seo extends Configured implements Tool {
             }
             if (most_common_num == 0)
                 return;
-            context.write(new Text(key.toString() +"\t"+ most_common_quest), new IntWritable(most_common_num));
+            context.write(new Text(key.getFirst().toString() +"\t"+ most_common_quest), new IntWritable(most_common_num));
         }
     }
 
@@ -131,6 +131,8 @@ public class Seo extends Configured implements Tool {
 
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
+
+        job.setNumReduceTasks(4);
 
         return job;
     }
