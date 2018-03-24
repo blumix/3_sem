@@ -104,7 +104,7 @@ public class seo extends Configured implements Tool {
         job.setJarByClass(seo.class);
         job.setJobName(seo.class.getCanonicalName());
 
-//        job.setInputFormatClass(TextInputFormat.class);
+        job.setInputFormatClass(TextInputFormat.class);
         FileInputFormat.addInputPath(job, new Path(input));
         FileOutputFormat.setOutputPath(job, new Path(output));
 
