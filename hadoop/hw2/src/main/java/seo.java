@@ -5,6 +5,7 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
@@ -103,8 +104,8 @@ public class seo extends Configured implements Tool {
         job.setJarByClass(seo.class);
         job.setJobName(seo.class.getCanonicalName());
 
-        job.setInputFormatClass(TextInputFormat.class);
-        TextInputFormat.addInputPath(job, new Path(input));
+//        job.setInputFormatClass(TextInputFormat.class);
+        FileInputFormat.addInputPath(job, new Path(input));
         FileOutputFormat.setOutputPath(job, new Path(output));
 
         job.setMapperClass(WordCountMapper.class);
