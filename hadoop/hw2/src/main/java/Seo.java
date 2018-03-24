@@ -60,21 +60,24 @@ public class Seo extends Configured implements Tool {
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 
             String[] input = value.toString().split ("\t");
-            String host = "";
+            String host;
             LOG.debug(input[1]);
             try {
                 host = getDomainName (input[1]);
             } catch (URISyntaxException e) {
-                e.printStackTrace();
+                context.getCounter("COMMON_COUNTERS", "BadURLS").increment(1);
+                return;
             }
 
             TextTextPair composite = new TextTextPair(host, input[0]);
-            context.write(composite, new IntWritable (1));
+            context.write(composite, one);
         }
 
         static String getDomainName(String url) throws URISyntaxException {
             URI uri = new URI(url);
             String domain = uri.getHost();
+            if (domain != null)
+
             return domain.startsWith("www.") ? domain.substring(4) : domain;
         }
     }
