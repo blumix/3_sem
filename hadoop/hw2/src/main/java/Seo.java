@@ -64,7 +64,7 @@ public class Seo extends Configured implements Tool {
             LOG.debug(input[1]);
             try {
                 host = getDomainName (input[1]);
-            } catch (URISyntaxException e) {
+            } catch (URISyntaxException | NullPointerException e) {
                 context.getCounter("COMMON_COUNTERS", "BadURLS").increment(1);
                 return;
             }
@@ -73,11 +73,9 @@ public class Seo extends Configured implements Tool {
             context.write(composite, one);
         }
 
-        static String getDomainName(String url) throws URISyntaxException {
+        static String getDomainName(String url) throws URISyntaxException , NullPointerException{
             URI uri = new URI(url);
             String domain = uri.getHost();
-            if (domain != null)
-
             return domain.startsWith("www.") ? domain.substring(4) : domain;
         }
     }
