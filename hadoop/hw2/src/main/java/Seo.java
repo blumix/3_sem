@@ -86,10 +86,10 @@ public class Seo extends Configured implements Tool {
         @Override
         protected void reduce(TextTextPair key, Iterable<IntWritable> nums, Context context) throws IOException, InterruptedException {
 
-            int most_common_num = 0;
-            String most_common_quest = "";
             nums.iterator().next().get();
+            int most_common_num = 1;
             int current = 1;
+            String most_common_quest = key.getSecond ().toString();
             String cur_string = key.getSecond ().toString();
             for(IntWritable ignored : nums) {
                 if (!cur_string.equals(key.getSecond ().toString())){
