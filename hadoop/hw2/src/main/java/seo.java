@@ -24,7 +24,7 @@ public class seo extends Configured implements Tool {
 
     public static class KeyComparator extends WritableComparator {
         protected KeyComparator() {
-            super(TextTextPair.class, true /* десериализовывать ли объекты (TextFloatPair) для compare */);
+            super(TextTextPair.class, true );
         }
 
         @Override
