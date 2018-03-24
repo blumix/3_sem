@@ -15,7 +15,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-public class seo extends Configured implements Tool {
+public class Seo extends Configured implements Tool {
     public static class DocQuestPartitioner extends Partitioner<TextTextPair, IntWritable> {
         @Override
         public int getPartition(TextTextPair key, IntWritable val, int numPartitions) {
@@ -101,8 +101,8 @@ public class seo extends Configured implements Tool {
     private Job getJobConf(String input, String output) throws IOException {
         Job job = Job.getInstance(getConf());
 
-        job.setJarByClass(seo.class);
-        job.setJobName(seo.class.getCanonicalName());
+        job.setJarByClass(Seo.class);
+        job.setJobName(Seo.class.getCanonicalName());
 
         job.setInputFormatClass(TextInputFormat.class);
         FileInputFormat.addInputPath(job, new Path(input));
@@ -132,7 +132,7 @@ public class seo extends Configured implements Tool {
     }
 
     static public void main(String[] args) throws Exception {
-        int ret = ToolRunner.run(new seo(), args);
+        int ret = ToolRunner.run(new Seo(), args);
         System.exit(ret);
     }
 }
