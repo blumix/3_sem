@@ -14,6 +14,9 @@ import org.apache.hadoop.util.ToolRunner;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class Seo extends Configured implements Tool {
     public static class DocQuestPartitioner extends Partitioner<TextTextPair, IntWritable> {
@@ -50,19 +53,22 @@ public class Seo extends Configured implements Tool {
 
 
     public static class WordCountMapper extends Mapper<LongWritable, Text, TextTextPair, IntWritable> {
+        private final static Logger LOG = LoggerFactory.getLogger(WordCountMapper.class);
+
         static final IntWritable one = new IntWritable(1);
         @Override
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 
             String[] input = value.toString().split ("\t");
             String host = "";
+            LOG.debug(input[1]);
             try {
                 host = getDomainName (input[1]);
             } catch (URISyntaxException e) {
                 e.printStackTrace();
             }
 
-            TextTextPair composite = new TextTextPair(host, input[1]);
+            TextTextPair composite = new TextTextPair(host, input[0]);
             context.write(composite, new IntWritable (1));
         }
 
