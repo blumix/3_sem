@@ -134,7 +134,7 @@ public class Seo extends Configured implements Tool {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
 
-        job.setNumReduceTasks(1);
+        job.setNumReduceTasks(10);
 
         return job;
     }
