@@ -98,7 +98,7 @@ public class Seo extends Configured implements Tool {
                 if (!cur_string.equals(key.getSecond ().toString())){
                     if (current > most_common_num){
                         most_common_num = current;
-                        most_common_quest = key.getSecond().toString();
+                        most_common_quest = cur_string;
                     }
                     cur_string = key.getSecond ().toString();
                     current = 0;
