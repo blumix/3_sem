@@ -39,11 +39,13 @@ def read_queries(f_name):
 class doc_reader:
     def __init__(self, path, stemm, urls):
         with open(path) as f:
-            self.doc_num = urls[f.readline().rstrip()]
+            html = ""
             try:
+                self.doc_num = urls[f.readline().rstrip()]
                 html = f.read()
             except:
-                return None
+                self.doc_num = -1
+                pass
 
         soup = BeautifulSoup(html, "html.parser")
 
@@ -66,6 +68,7 @@ class doc_reader:
         lines = (line.strip() for line in text.splitlines())
         chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
         text = '\n'.join(chunk for chunk in chunks if chunk)
+        text = '\n'.join(patt.findall(text))
         return [word for word in stemm.lemmatize(text) if patt.search(word)]
 
 
@@ -83,10 +86,11 @@ class docs_container:
             doc = doc_reader(f_name, self.stemm, self.urls)
             self.docs[doc.doc_num] = doc
             if i % 10 == 0:
-                sys.stderr.write(
-                    "path:{}, {} / {}, elapsed {}\n".format(self.path, i, len(self.files),
-                                                            time.time() - start_time))
+                sys.stderr.write(f"path:{self.path} | {i}/{len(self.files)} | time:{time.time() - start_time}\n")
                 sys.stderr.flush()
+        self.stemm = None
+        self.urls = None
+        self.files = None
 
 
 def scan_dir(dir_name):
@@ -95,7 +99,7 @@ def scan_dir(dir_name):
     stemm.start()
     d_c = docs_container(dir_name, stemm, urls)
     d_c.read_docs()
-    pickle.dump(d_c, dir_name + "scanned.dump")
+    pickle.dump(d_c, open(dir_name + "scanned.dump", "wb"))
 
 
 class all_doc_reader:
@@ -105,9 +109,10 @@ class all_doc_reader:
         self.n_pools = len(self.dirs)
 
     def run(self):
+        # scan_dir(self.dirs[3])
         with Pool(len(self.dirs)) as p:
             p.map(scan_dir, self.dirs)
-            # scan_dir(d)
+        #     # scan_dir(d)
 
 
 def main():
