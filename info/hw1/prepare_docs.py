@@ -134,6 +134,7 @@ def main():
     idf = vectorizer.idf_
     idf_result = dict(zip(vectorizer.get_feature_names(), idf))
     pickle.dump(idf_result, open ("idf.dump", "wb"))
+    pickle.dump(first.docs, open("docs.dump", "wb"))
 
 
 if __name__ == "__main__":
