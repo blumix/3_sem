@@ -128,7 +128,7 @@ def main():
     for f in files[1:]:
         temp = pickle.load(f)
         first.docs.update(temp.docs)
-
+    print ("here")
     vectorizer = TfidfVectorizer(preprocessor=lambda x: x, tokenizer=lambda x: x.body + x.title)
     vectorizer.fit_transform(first.docs)
     idf = vectorizer.idf_
