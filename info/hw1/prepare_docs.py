@@ -2,12 +2,13 @@ import pickle
 import time
 import re
 from multiprocessing import Pool
-from os import listdir
+from os import listdir, os
 
 import sys
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
 from pymystem3 import Mystem
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 def read_urls(f_name):
@@ -115,9 +116,24 @@ class all_doc_reader:
         #     # scan_dir(d)
 
 
-def main():
+def main_1():
     reader = all_doc_reader("content/")
     reader.run()
+
+
+def main():
+    path = "content/"
+    files = [f for f in os.listdir(path) if os.path.isfile(f)]
+    first = pickle.load(files[0])
+    for f in files[1:]:
+        temp = pickle.load(f)
+        first.docs.update(temp.docs)
+
+    vectorizer = TfidfVectorizer(preprocessor=lambda x: x, tokenizer=lambda x: x.body + x.title)
+    vectorizer.fit_transform(first.docs)
+    idf = vectorizer.idf_
+    idf_result = dict(zip(vectorizer.get_feature_names(), idf))
+    pickle.dump(idf_result, open ("idf.dump", "wb"))
 
 
 if __name__ == "__main__":
