@@ -2,15 +2,15 @@ import pickle
 import time
 import re
 from multiprocessing import Pool
-from os import listdir, os
-
+from os import listdir
+from os import path as pathpath
 import sys
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
 from pymystem3 import Mystem
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-
+import scipy
 def read_urls(f_name):
     urls = {}
     with open(f_name) as f:
@@ -37,6 +37,15 @@ def read_queries(f_name):
     return urls
 
 
+def clear_text(text, stemm):
+    patt = re.compile(r'[\w]+', flags=re.UNICODE)
+    lines = (line.strip() for line in text.splitlines())
+    chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+    text = '\n'.join(chunk for chunk in chunks if chunk)
+    text = '\n'.join(patt.findall(text))
+    return [word for word in stemm.lemmatize(text) if patt.search(word)]
+
+
 class doc_reader:
     def __init__(self, path, stemm, urls):
         with open(path) as f:
@@ -59,18 +68,10 @@ class doc_reader:
         else:
             body = body.get_text()
 
-        self.body = self.clear_text(body.lower(), stemm)
+        self.body = clear_text(body.lower(), stemm)
         if title is not None:
-            self.title = self.clear_text(title.get_text().lower(), stemm)
+            self.title = clear_text(title.get_text().lower(), stemm)
         pass
-
-    def clear_text(self, text, stemm):
-        patt = re.compile(r'[\w]+', flags=re.UNICODE)
-        lines = (line.strip() for line in text.splitlines())
-        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-        text = '\n'.join(chunk for chunk in chunks if chunk)
-        text = '\n'.join(patt.findall(text))
-        return [word for word in stemm.lemmatize(text) if patt.search(word)]
 
 
 class docs_container:
@@ -123,10 +124,10 @@ def main_1():
 
 def main():
     path = "content/"
-    files = [f for f in os.listdir(path) if os.path.isfile(f)]
-    first = pickle.load(files[0])
+    files = [f for f in listdir(path) if pathpath.isfile(path + f)]
+    first = pickle.load(open (path + files[0], 'rb'))
     for f in files[1:]:
-        temp = pickle.load(f)
+        temp = pickle.load(open(path + f,'rb'))
         first.docs.update(temp.docs)
     print ("here")
     vectorizer = TfidfVectorizer(preprocessor=lambda x: x, tokenizer=lambda x: x.body + x.title)
