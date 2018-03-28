@@ -63,27 +63,36 @@ def load_dict():
     return pickle.load(open("documents.pickle", 'rb'))
 
 
-def get_corp(docs):
-    return [doc[1].title + doc[1].doc for doc in sorted(docs.items())]
+def dump_docs_list(docs):
+    pickle.dump ([doc for doc in sorted(docs.items())], open ("docs_in_list", "wb"))
+
+
+# def get_bm25():
+#     global st, q, s
+#     bm25 = summarization.bm25.BM25(get_corp(docs_dict))
+#     av_idf = np.sum(i for i in bm25.idf.values()) / len(bm25.idf)
+#     res_file = open("sub_bm25.csv", "w")
+#     res_file.write('QueryId,DocumentId\n')
+#     st = sorted(docs_dict.keys())
+#     for q in queries.items():
+#         scores = bm25.get_scores(q[1], av_idf)
+#         max_inds = np.argsort(scores)[:2]
+#
+#         for s in max_inds:
+#             res_file.write(f"{q[0]},{urls[st[s]]}\n")
+#     res_file.close()
+#
+# def create_gensim_dict ():
 
 
 if __name__ == '__main__':
     # prepare_dict(cut=5)
-    urls = read_urls()
-    queries = read_queries()
+    # urls = read_urls()
+    # queries = read_queries()
     docs_dict = load_dict()
-    bm25 = summarization.bm25.BM25(get_corp(docs_dict))
-    av_idf = np.sum(i for i in bm25.idf.values()) / len(bm25.idf)
-
-    res_file = open("sub_bm25.csv", "w")
-    res_file.write('QueryId,DocumentId\n')
-
-    st = sorted(docs_dict.keys())
-
-    for q in queries.items():
-        scores = bm25.get_scores(q[1], av_idf)
-        max_inds = np.argsort(scores)[:2]
-
-        for s in max_inds:
-            res_file.write(f"{q[0]},{urls[st[s]]}\n")
-    res_file.close()
+    dump_docs_list(docs_dict)
+    # for d in docs_dict.items():
+    #     print(f"url in doc:{d[1].doc_url} url_num:{urls[d[1].doc_url]}")
+    #     print(d[1].title)
+    #     print(d[1].doc)
+    #     break
