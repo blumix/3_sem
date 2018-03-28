@@ -3,6 +3,7 @@ import sys
 import time
 
 import multiprocessing
+
 import re
 import testfixtures as testfixtures
 from bs4 import BeautifulSoup
@@ -81,12 +82,12 @@ class docs_container:
 
 
 def clear_text(text, stemm):
-    patt = re.compile(r'[\w]+', flags=re.UNICODE)
+    patt = re.compile(r'[^\W]+', flags=re.UNICODE)
     lines = (line.strip() for line in text.splitlines())
     chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
     text = '\n'.join(chunk for chunk in chunks if chunk)
     text = '\n'.join(patt.findall(text))
-    return [word for word in stemm.lemmatize(text) if patt.search(word)]
+    return [word for word in stemm.lemmatize(text) if patt.search(word) and word not in stopwords.words('russian')]
 
 
 def read_queries(f_name):
@@ -152,20 +153,26 @@ def get_model(docs):
     model_dbow.save("model_dbow.model")
     return model_dm, model_dbow
 
+def clear_and_dump_all_docs (docs):
+    file
+    for doc in docs:
+
+
 
 def main():
-    path_to_folder = "content/"
-    files = [f for f in listdir(path_to_folder) if path.isfile(path_to_folder + f)]
-    first = pickle.load(open(path_to_folder + files[0], 'rb'))
-    for f in files[1:]:
-        temp = pickle.load(open(path_to_folder + f, 'rb'))
-        first.docs.update(temp.docs)
+    # path_to_folder = "content/"
+    # files = [f for f in listdir(path_to_folder) if path.isfile(path_to_folder + f)]
+    # first = pickle.load(open(path_to_folder + files[0], 'rb'))
+    # for f in files[1:]:
+    #     temp = pickle.load(open(path_to_folder + f, 'rb'))
+    #     first.docs.update(temp.docs)
 
-    model_dm, model_dbow = get_model(first.docs)
+    # model_dm, model_dbow = get_model(first.docs)
 
     querys = read_queries("queries.numerate.txt")
     # concat_model = ConcatenatedDoc2Vec([model_dm, model_dbow])
     # model_dm, model_dbow = load_models()
+    a = 1
     models = [model_dm, model_dbow]  # , concat_model]
     files = [open("sub_dm.csv", "w"), open("sub_dbow.csv", "w"), open("sub_concat.csv", "w")]
 
