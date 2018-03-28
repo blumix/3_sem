@@ -2,9 +2,14 @@ import pickle
 
 import time
 
+import numpy as np
+
+import DocStreamReader
 import sys
 from os import listdir
-import DocStreamReader
+from pymystem3 import Mystem
+
+from gensim import summarization
 
 
 def get_all_dat_files(folder):
@@ -15,8 +20,32 @@ def get_all_dat_files(folder):
     return files
 
 
-if __name__ == '__main__':
+def read_queries(f_name='queries.numerate.txt'):
+    queries = {}
+    with open(f_name, encoding='utf-8') as f:
+        content = f.readlines()
+    content = [x.strip() for x in content]
+    for url in content:
+        split = url.split('\t')
+        queries[int(split[0])] = DocStreamReader.clear_text(split[1])
+    return queries
+
+
+def read_urls(f_name='urls.numerate.txt'):
+    urls = {}
+    with open(f_name) as f:
+        content = f.readlines()
+    content = [x.strip() for x in content]
+    for url in content:
+        split = url.split('\t')
+        urls[split[1]] = int(split[0])
+    return urls
+
+
+def prepare_dict(cut=None):
     files = get_all_dat_files('content/')
+    if cut:
+        files = files[:cut]
     s_parser = DocStreamReader.load_files_multiprocess(files)
     docs = {}
     n = len(files)
@@ -28,3 +57,33 @@ if __name__ == '__main__':
         if i % 10 == 0:
             sys.stdout.write(f"\n{i}/{n}, time:{time.time() - start}\n")
     pickle.dump(docs, open("documents.pickle", 'wb'))
+
+
+def load_dict():
+    return pickle.load(open("documents.pickle", 'rb'))
+
+
+def get_corp(docs):
+    return [doc[1].title + doc[1].doc for doc in sorted(docs.items())]
+
+
+if __name__ == '__main__':
+    # prepare_dict(cut=5)
+    urls = read_urls()
+    queries = read_queries()
+    docs_dict = load_dict()
+    bm25 = summarization.bm25.BM25(get_corp(docs_dict))
+    av_idf = np.sum(i for i in bm25.idf.values()) / len(bm25.idf)
+
+    res_file = open("sub_bm25.csv", "w")
+    res_file.write('QueryId,DocumentId\n')
+
+    st = sorted(docs_dict.keys())
+
+    for q in queries.items():
+        scores = bm25.get_scores(q[1], av_idf)
+        max_inds = np.argsort(scores)[:2]
+
+        for s in max_inds:
+            res_file.write(f"{q[0]},{urls[st[s]]}\n")
+    res_file.close()

@@ -69,7 +69,7 @@ WORKER_NUM = 1
 def load_csv_worker(files, worker_id, res_queue):
     for i, file in enumerate(files):
         if i % WORKER_NUM != worker_id: continue
-        with open(file) as input_file:
+        with open(file,encoding='utf-8') as input_file:
             trace_worker(i, worker_id)
             try:
                 url = input_file.readline().rstrip()

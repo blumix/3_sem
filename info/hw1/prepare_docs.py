@@ -22,20 +22,6 @@ def read_urls(f_name):
     return urls
 
 
-def read_queries(f_name):
-    urls = {}
-    patt = re.compile(r"[\w]+", flags=re.UNICODE)
-    with open(f_name) as f:
-        content = f.readlines()
-    content = [x.strip() for x in content]
-    for url in content:
-        split = url.split('\t')
-        urls[int(split[0])] = set([word for word in set(patt.split(split[1].lower())) if
-                                   word not in stopwords.words('russian')])
-        if u'' in urls[int(split[0])]:
-            urls[int(split[0])].remove(u'')
-    return urls
-
 
 def clear_text(text, stemm):
     patt = re.compile(r'[\w]+', flags=re.UNICODE)
@@ -122,6 +108,20 @@ def main_1():
     reader.run()
 
 
+def read_queries(f_name):
+    urls = {}
+    m_stem = Mystem(entire_input=True)
+    with open(f_name) as f:
+        content = f.readlines()
+    content = [x.strip() for x in content]
+    for url in content:
+        split = url.split('\t')
+        urls[int(split[0])] = m_stem.lemmatize(split[1])
+        patt = re.compile(r'[\w]+', flags=re.UNICODE)
+        urls[int(split[0])] = [x for x in urls[int(split[0])] if x not in [u' ', u'\n', u' ']]
+    return urls
+
+
 def main():
     path = "content/"
     files = [f for f in listdir(path) if pathpath.isfile(path + f)]
@@ -129,12 +129,12 @@ def main():
     for f in files[1:]:
         temp = pickle.load(open(path + f,'rb'))
         first.docs.update(temp.docs)
-    print ("here")
+    print("here")
     vectorizer = TfidfVectorizer(preprocessor=lambda x: x, tokenizer=lambda x: x.body + x.title)
     vectorizer.fit_transform(first.docs)
     idf = vectorizer.idf_
     idf_result = dict(zip(vectorizer.get_feature_names(), idf))
-    pickle.dump(idf_result, open ("idf.dump", "wb"))
+    pickle.dump(idf_result, open("idf.dump", "wb"))
     pickle.dump(first.docs, open("docs.dump", "wb"))
 
 
