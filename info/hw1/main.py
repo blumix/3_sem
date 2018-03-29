@@ -94,9 +94,12 @@ def get_bm25():
         query_bow = dictionary.doc2bow(q[1])
         scores = bm25.get_scores(query_bow, av_idf)
         max_inds = np.argsort(scores)
+        print(scores)
         for index in reversed(max_inds[-10:]):
+            print(scores[index])
             res_file.write(f"{q[0]},{map_docs_to_nums[index]}\n")
-        print(f"{i} docs.")
+        # print(f"{i}, score{scores[reversed(max_inds[-10:])[0]]} docs.")
+
 
 # def create_gensim_dict ():
 
@@ -160,27 +163,27 @@ def if_idf():
     # docs = prepare_dict(cut=20)
     queries = read_queries()
     #
-    gen_dict = gensim.corpora.Dictionary(doc.title + doc.body for doc in read_docs())
-    gen_dict.filter_extremes(no_below=1, no_above=1, keep_n=None)
-    gen_dict.save("gen_dict.dict")
-
-    raw_corpus = [gen_dict.doc2bow(doc.title + doc.body) for doc in read_docs()]
-    gensim.corpora.MmCorpus.serialize('corpa.mm', raw_corpus)  # store to disk
-
+    # gen_dict = gensim.corpora.Dictionary(doc.title + doc.body for doc in read_docs())
+    # gen_dict.filter_extremes(no_below=1, no_above=1, keep_n=None)
+    # gen_dict.save("gen_dict.dict")
+    #
+    # raw_corpus = [gen_dict.doc2bow(doc.title + doc.body) for doc in read_docs()]
+    # gensim.corpora.MmCorpus.serialize('corpa.mm', raw_corpus)  # store to disk
+    #
     dictionary = gensim.corpora.Dictionary.load('gen_dict.dict')
-    corpus = gensim.corpora.MmCorpus('corpa.mm')
-
-    tfidf_model = gensim.models.TfidfModel(raw_corpus, dictionary=dictionary)
-    index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
-    tfidf_model.save("tf_idf.model")
-    index_sparse.save("index_sparse.matrix")
+    # corpus = gensim.corpora.MmCorpus('corpa.mm')
+    #
+    # tfidf_model = gensim.models.TfidfModel(raw_corpus, dictionary=dictionary)
+    # index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
+    # tfidf_model.save("tf_idf.model")
+    # index_sparse.save("index_sparse.matrix")
 
     tfidf_model = gensim.models.TfidfModel.load("tf_idf.model")
     index_sparse = gensim.similarities.SparseMatrixSimilarity.load("index_sparse.matrix")
 
     map_docs_to_nums = [doc.index for doc in read_docs()]
 
-    res_file = open("sub_bm25.csv", "w")
+    res_file = open("sub_tf-idf.csv", "w")
     res_file.write('QueryId,DocumentId\n')
 
     for i, q in enumerate(queries.items()):
@@ -192,8 +195,7 @@ def if_idf():
         print(f"{i} docs.")
 
 
-
-def get_doc2vec ():
+def get_doc2vec():
     # model = get_model_doc2vec()
     model = gensim.models.doc2vec.Doc2Vec.load("model_dm.model")
 
@@ -213,6 +215,6 @@ def get_doc2vec ():
             # res_file.write(f"{q[0]},{s[0]}\n")
     # res_file.close()
 
-if __name__ == '__main__':
-    get_bm25 ()
 
+if __name__ == '__main__':
+    if_idf()
