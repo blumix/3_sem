@@ -1,6 +1,7 @@
 import pickle
 
 import time
+from collections import OrderedDict
 
 import numpy as np
 
@@ -9,7 +10,7 @@ import sys
 from os import listdir
 from pymystem3 import Mystem
 
-from gensim import summarization
+import gensim
 
 
 def get_all_dat_files(folder):
@@ -47,16 +48,18 @@ def prepare_dict(cut=None):
     if cut:
         files = files[:cut]
     s_parser = DocStreamReader.load_files_multiprocess(files)
-    docs = {}
+    docs = OrderedDict()
     n = len(files)
     i = 0
+    urls = read_urls()
     start = time.time()
     for doc in s_parser:
-        docs[doc.doc_url] = doc
+        docs[urls[doc.doc_url]] = doc
         i += 1
         if i % 10 == 0:
             sys.stdout.write(f"\n{i}/{n}, time:{time.time() - start}\n")
     pickle.dump(docs, open("documents.pickle", 'wb'))
+    return docs
 
 
 def load_dict():
@@ -64,7 +67,7 @@ def load_dict():
 
 
 def dump_docs_list(docs):
-    pickle.dump ([doc for doc in sorted(docs.items())], open ("docs_in_list", "wb"))
+    pickle.dump([doc for doc in sorted(docs.items())], open("docs_in_list", "wb"))
 
 
 # def get_bm25():
@@ -85,14 +88,36 @@ def dump_docs_list(docs):
 # def create_gensim_dict ():
 
 
+# def tf_idf (docs):
+
 if __name__ == '__main__':
-    # prepare_dict(cut=5)
-    # urls = read_urls()
-    # queries = read_queries()
-    docs_dict = load_dict()
-    dump_docs_list(docs_dict)
-    # for d in docs_dict.items():
-    #     print(f"url in doc:{d[1].doc_url} url_num:{urls[d[1].doc_url]}")
-    #     print(d[1].title)
-    #     print(d[1].doc)
-    #     break
+    docs = prepare_dict(cut=20)
+    urls = read_urls()
+    queries = read_queries()
+
+    gen_dict = gensim.corpora.Dictionary(doc.doc + doc.title for doc in docs.values())
+    gen_dict.filter_extremes(no_below=2)
+    gen_dict.save("gen_dict.dict")
+
+    raw_corpus = [gen_dict.doc2bow(doc.doc + doc.title) for doc in docs.values()]
+    gensim.corpora.MmCorpus.serialize('corpa.mm', raw_corpus)  # store to disk
+
+    dictionary = gensim.corpora.Dictionary.load('gen_dict.dict')
+    corpus = gensim.corpora.MmCorpus('corpa.mm')
+
+    tfidf_model = gensim.models.TfidfModel(raw_corpus, dictionary=gen_dict)
+    index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
+
+    # res_file = open("sub_bm25.csv", "w")
+    # res_file.write('QueryId,DocumentId\n')
+
+    map_docs_to_nums = []
+    for d in docs.items():
+        map_docs_to_nums.append(d[0])
+    print (map_docs_to_nums)
+
+    for q in range (len (map_docs_to_nums)):#queries.items():
+        # query_bow = gen_dict.doc2bow(q[1])
+        query_tfidf = tfidf_model[gen_dict.doc2bow(docs[map_docs_to_nums[q]].doc + docs[map_docs_to_nums[q]].title)]
+        index_sparse.num_best = 2
+        print(index_sparse[query_tfidf])
