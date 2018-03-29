@@ -63,7 +63,7 @@ from multiprocessing import Process, Queue
 
 DocItem = namedtuple('DocItem', ['doc_url', 'title', 'doc'])
 
-WORKER_NUM = 8
+WORKER_NUM = 40
 
 
 def load_csv_worker(files, worker_id, res_queue):
@@ -71,7 +71,6 @@ def load_csv_worker(files, worker_id, res_queue):
         if i % WORKER_NUM != worker_id: continue
         with open(file,encoding='utf-8') as input_file:
             trace_worker(i, worker_id)
-            print (file)
             try:
                 url = input_file.readline().rstrip()
                 html = input_file.read()
