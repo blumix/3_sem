@@ -2,6 +2,7 @@ import re
 from collections import namedtuple
 from nltk.corpus import stopwords
 from pymystem3 import Mystem
+from bs4 import BeautifulSoup
 
 TRACE_NUM = 1000
 import logging
@@ -18,12 +19,11 @@ def trace_worker(items_num, worker_id, trace_num=TRACE_NUM):
 
 
 def html2text_bs_visible(raw_html):
-    from bs4 import BeautifulSoup
     """
     Тут производится извлечения из html текста, который видим пользователю
     """
     soup = BeautifulSoup(raw_html, "html.parser")
-    [s.extract() for s in soup(['style', 'script', '[document]'])]
+    [s.extract() for s in soup(['style', 'script'])]
 
     try:
         title = soup.find('title').get_text()
@@ -31,8 +31,23 @@ def html2text_bs_visible(raw_html):
         title = ''
 
     [s.extract() for s in soup(['title', 'head'])]
+    try:
+        keywords = soup.find('keywords').get_text()
+    except:
+        keywords = ''
+    [s.extract() for s in soup(['keywords'])]
+    try:
+        links = soup.find('a').get_text()
+    except:
+        links = ''
+    [s.extract() for s in soup(['a'])]
+    try:
+        description = soup.find('description').get_text()
+    except:
+        description = ''
+    [s.extract() for s in soup(['description'])]
     body = soup.get_text()
-    return title, body
+    return title, keywords, links, body, description
 
 
 patt = re.compile(r'[^\W]+', flags=re.UNICODE)
@@ -50,26 +65,26 @@ def clear_text(text):
 html2text = html2text_bs_visible
 
 
-def toks(title, body):
-    return clear_text(title), clear_text(body)
+def toks(to_clear):
+    return clear_text(to_clear)
 
 
 def html2word(raw_html, to_text=html2text):
-    title, body = to_text(raw_html)
-    return toks(title, body)
+    fields = to_text(raw_html)
+    return [toks(f) for f in fields]
 
 
 from multiprocessing import Process, Queue
 
-DocItem = namedtuple('DocItem', ['doc_url', 'title', 'doc'])
+DocItem = namedtuple('DocItem', ['doc_url', 'title', 'keywords', 'links', 'text', 'description'])
 
-WORKER_NUM = 40
+WORKER_NUM = 8
 
 
 def load_csv_worker(files, worker_id, res_queue):
     for i, file in enumerate(files):
         if i % WORKER_NUM != worker_id: continue
-        with open(file,encoding='utf-8') as input_file:
+        with open(file, encoding='utf-8') as input_file:
             trace_worker(i, worker_id)
             try:
                 url = input_file.readline().rstrip()
@@ -77,9 +92,7 @@ def load_csv_worker(files, worker_id, res_queue):
             except:
                 continue
 
-            title, body = html2word(html)
-
-            res_queue.put(DocItem(url, title, body))
+            res_queue.put(DocItem(url, *html2word(html)))
 
         trace_worker(i, worker_id, 1)
     res_queue.put(None)
