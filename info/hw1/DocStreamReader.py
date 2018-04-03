@@ -27,15 +27,33 @@ def html2text_bs_visible(raw_html):
     for s in soup.findAll(['script', 'style']):
         s.decompose()
 
-    links = u' '.join(link.extract().get_text().lower() for link in soup('a'))
-    keywords = u' '.join(tag.attrs['content'] for tag in soup('meta') if
-                                    'name' in tag.attrs.keys() and tag.attrs['name'].strip().lower() in ['keywords'])
-    description = u' '.join(tag.attrs['content'] for tag in soup('meta') if
-                                       'name' in tag.attrs.keys() and tag.attrs['name'].strip().lower() in [
-                                           'description'])
+    try:
+        links = u' '.join(link.extract().get_text().lower() for link in soup('a'))
+    except:
+        links = []
+    try:
+        keywords = u' '.join(tag.attrs['content'] for tag in soup('meta') if
+                             'name' in tag.attrs.keys() and tag.attrs['name'].strip().lower() in ['keywords'])
+    except:
+        keywords = []
+
+    try:
+        description = u' '.join(tag.attrs['content'] for tag in soup('meta') if
+                                'name' in tag.attrs.keys() and tag.attrs['name'].strip().lower() in [
+                                    'description'])
+    except:
+        description = []
+
     for s in soup('meta'): s.decompose()
-    title = u' '.join(link.extract().get_text().lower() for link in soup('title'))
-    body = soup.getText()
+    try:
+        title = u' '.join(link.extract().get_text().lower() for link in soup('title'))
+    except:
+        title = []
+    try:
+        body = soup.getText()
+    except:
+        body = []
+
     return title, keywords, links, body, description
 
 
