@@ -259,8 +259,8 @@ def if_idf_weighted(get_from_doc, cur_name_of_part):
 
 
 def agreggate_result():
-    names_of_parts = ['text','title']
-    extractors = [get_from_doc_text, get_from_doc_title  ]
+    names_of_parts = ['text', 'title']
+    extractors = [get_from_doc_text, get_from_doc_title]
 
     agr_res = []
     for i in range(len(names_of_parts)):
@@ -357,7 +357,7 @@ def go_parse():
     f = open("new_documents.dump", "w", encoding='utf-8')
 
     files = get_all_dat_files('content/')
-    cut = None
+    cut = 20
     if cut:
         files = files[:cut]
     s_parser = DocStreamReader.load_files_multiprocess(files)
@@ -368,4 +368,4 @@ def go_parse():
 
 
 if __name__ == '__main__':
-    agreggate_result()
+    go_parse()

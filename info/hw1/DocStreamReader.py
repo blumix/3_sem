@@ -23,30 +23,19 @@ def html2text_bs_visible(raw_html):
     Тут производится извлечения из html текста, который видим пользователю
     """
     soup = BeautifulSoup(raw_html, "html.parser")
-    [s.extract() for s in soup(['style', 'script'])]
 
-    try:
-        title = soup.find('title').get_text()
-    except:
-        title = ''
+    for s in soup.findAll(['script', 'style']):
+        s.decompose()
 
-    [s.extract() for s in soup(['title', 'head'])]
-    try:
-        keywords = soup.find('keywords').get_text()
-    except:
-        keywords = ''
-    [s.extract() for s in soup(['keywords'])]
-    try:
-        links = soup.find('a').get_text()
-    except:
-        links = ''
-    [s.extract() for s in soup(['a'])]
-    try:
-        description = soup.find('description').get_text()
-    except:
-        description = ''
-    [s.extract() for s in soup(['description'])]
-    body = soup.get_text()
+    links = u' '.join(link.extract().get_text().lower() for link in soup('a'))
+    keywords = u' '.join(tag.attrs['content'] for tag in soup('meta') if
+                                    'name' in tag.attrs.keys() and tag.attrs['name'].strip().lower() in ['keywords'])
+    description = u' '.join(tag.attrs['content'] for tag in soup('meta') if
+                                       'name' in tag.attrs.keys() and tag.attrs['name'].strip().lower() in [
+                                           'description'])
+    for s in soup('meta'): s.decompose()
+    title = u' '.join(link.extract().get_text().lower() for link in soup('title'))
+    body = soup.getText()
     return title, keywords, links, body, description
 
 
@@ -59,7 +48,7 @@ def clear_text(text):
     chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
     text = '\n'.join(chunk for chunk in chunks if chunk)
     text = '\n'.join(patt.findall(text))
-    return [word for word in stemm.lemmatize(text) if patt.search(word) and word not in stopwords.words('russian')]
+    return [word for word in stemm.lemmatize(text) if patt.search(word)]
 
 
 html2text = html2text_bs_visible
@@ -78,7 +67,7 @@ from multiprocessing import Process, Queue
 
 DocItem = namedtuple('DocItem', ['doc_url', 'title', 'keywords', 'links', 'text', 'description'])
 
-WORKER_NUM = 8
+WORKER_NUM = 1
 
 
 def load_csv_worker(files, worker_id, res_queue):
