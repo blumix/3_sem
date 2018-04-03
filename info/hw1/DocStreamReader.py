@@ -67,7 +67,7 @@ from multiprocessing import Process, Queue
 
 DocItem = namedtuple('DocItem', ['doc_url', 'title', 'keywords', 'links', 'text', 'description'])
 
-WORKER_NUM = 1
+WORKER_NUM = 12
 
 
 def load_csv_worker(files, worker_id, res_queue):

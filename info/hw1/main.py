@@ -356,15 +356,14 @@ def go_parse():
     urls = read_urls()
     f = open("new_documents.dump", "w", encoding='utf-8')
 
+    start = time.time()
     files = get_all_dat_files('content/')
-    cut = 20
-    if cut:
-        files = files[:cut]
     s_parser = DocStreamReader.load_files_multiprocess(files)
     for doc in s_parser:
         f.write(
             f"{urls[doc.doc_url]}\t{doc.doc_url}\t{' '.join(doc.title)}\t{' '.join(doc.keywords)}\t{' '.join(doc.links)}\t{' '.join(doc.text)}\t{' '.join(doc.description)}\n")
     f.close()
+    print (time.time() - start)
 
 
 if __name__ == '__main__':
