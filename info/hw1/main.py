@@ -3,7 +3,8 @@ import pickle
 import time
 
 import multiprocessing
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
+from multiprocessing import Process
 
 import numpy as np
 from gensim.models.doc2vec import TaggedDocument
@@ -161,26 +162,51 @@ def get_model_doc2vec():
     return model_dm
 
 
+from nltk.corpus import stopwords
+
+
 def if_idf():
     # print(f"number of docs is:{sum(1 for _ in read_docs())}")
     # docs = prepare_dict(cut=20)
     queries = read_queries()
-    #
-    # gen_dict = gensim.corpora.Dictionary(doc.title + doc.body for doc in read_docs())
+
+    sw = ' '.join(stopwords.words('russian'))
+
+    stopwords_norm = DocStreamReader.clear_text(sw)
+
+    print(stopwords_norm)
+
+    gen_dict = gensim.corpora.Dictionary(
+        [[w for w in doc.title if w not in stopwords_norm] + [w for w in doc.text if w not in stopwords_norm] + [w for w
+                                                                                                                 in
+                                                                                                                 doc.links
+                                                                                                                 if
+                                                                                                                 w not in stopwords_norm] + [
+             w for w in doc.keywords if w not in stopwords_norm] + [w for w in doc.description if
+                                                                    w not in stopwords_norm] for doc
+         in read_docs()], prune_at=None)
     # gen_dict.filter_extremes(no_below=1, no_above=1, keep_n=None)
-    # gen_dict.save("gen_dict.dict")
+    gen_dict.save("gen_dict.dict")
     #
-    # raw_corpus = [gen_dict.doc2bow(doc.title + doc.body) for doc in read_docs()]
-    # gensim.corpora.MmCorpus.serialize('corpa.mm', raw_corpus)  # store to disk
+
+    raw_corpus = [gen_dict.doc2bow(
+        [w for w in doc.title if w not in stopwords_norm] + [w for w in doc.text if w not in stopwords_norm] + [w for w
+                                                                                                                in
+                                                                                                                doc.links
+                                                                                                                if
+                                                                                                                w not in stopwords_norm] + [
+            w for w in doc.keywords if w not in stopwords_norm] + [w for w in doc.description if
+                                                                   w not in stopwords_norm]) for doc in read_docs()]
+    gensim.corpora.MmCorpus.serialize('corpa.mm', raw_corpus)  # store to disk
     #
     dictionary = gensim.corpora.Dictionary.load('gen_dict.dict')
-    # corpus = gensim.corpora.MmCorpus('corpa.mm')
+    corpus = gensim.corpora.MmCorpus('corpa.mm')
     #
-    # tfidf_model = gensim.models.TfidfModel(raw_corpus, dictionary=dictionary)
-    # index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
-    # tfidf_model.save("tf_idf.model")
-    # index_sparse.save("index_sparse.matrix")
-
+    tfidf_model = gensim.models.TfidfModel(dictionary=dictionary)
+    index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
+    tfidf_model.save("tf_idf.model")
+    index_sparse.save("index_sparse.matrix")
+    #
     tfidf_model = gensim.models.TfidfModel.load("tf_idf.model")
     index_sparse = gensim.similarities.SparseMatrixSimilarity.load("index_sparse.matrix")
 
@@ -191,7 +217,7 @@ def if_idf():
 
     for i, q in enumerate(queries.items()):
         query_bow = dictionary.doc2bow(q[1])
-        print(query_bow)
+        # print(query_bow)
         query_tfidf = tfidf_model[query_bow]
         index_sparse.num_best = 10
         for index in index_sparse[query_tfidf]:
@@ -228,25 +254,17 @@ def get_from_doc_description(doc):
 
 
 def if_idf_weighted(get_from_doc, cur_name_of_part):
-    gen_dict = gensim.corpora.Dictionary(get_from_doc(doc) for doc in read_docs())
-    gen_dict.save(f"gen_dict_{cur_name_of_part}.dict")
+    gen_dict = gensim.corpora.Dictionary([get_from_doc(doc) for doc in read_docs()], prune_at=None)
     gensim.corpora.MmCorpus.serialize(f'corpa_{cur_name_of_part}.mm',
-                                      [gen_dict.doc2bow(doc.title) for doc in read_docs()])  # store to disk
-    gen_dict = gensim.corpora.Dictionary.load(f'gen_dict_{cur_name_of_part}.dict')
+                                      [gen_dict.doc2bow(get_from_doc(doc)) for doc in read_docs()])  # store to disk
     corpus = gensim.corpora.MmCorpus(f'corpa_{cur_name_of_part}.mm')
-    tfidf_model = gensim.models.TfidfModel([gen_dict.doc2bow(doc.title) for doc in read_docs()], dictionary=gen_dict,
+    tfidf_model = gensim.models.TfidfModel(dictionary=gen_dict,
                                            wglobal=wglob,
                                            wlocal=wloc)
-    index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
-    tfidf_model.save(f"tf_idf_{cur_name_of_part}.model")
-    index_sparse.save(f"index_sparse_{cur_name_of_part}.matrix")
-
-    tfidf_model = gensim.models.TfidfModel.load(f"tf_idf_{cur_name_of_part}.model")
-    # index_sparse = gensim.similarities.SparseMatrixSimilarity.load(f"index_sparse_{cur_name_of_part}.matrix")
     corpus_tfidf = tfidf_model[corpus]
-
-    result = []
-    for c_id in corpus_tfidf:
+    result = defaultdict(list)
+    for doc_id, c_id in enumerate(corpus_tfidf):
+        sys.stderr.write(f"{cur_name_of_part}:{doc_id}\n")
         for i, q in enumerate(read_queries().items()):
             query_bow = gen_dict.doc2bow(q[1])
             termid_array, tf_array = [], []
@@ -254,19 +272,51 @@ def if_idf_weighted(get_from_doc, cur_name_of_part):
                 termid_array.append(termid)
                 tf_array.append(tf)
             tmp_calculated = np.sum([ddoc[1] for ddoc in c_id if ddoc[0] in termid_array])
-            result.append(tmp_calculated)
-    return result
+            result[q[0]].append(tmp_calculated)
+
+    pickle.dump(result, open(f"{cur_name_of_part}.dump", "wb"))
+    # return result
+
+
+def final_res():
+    names_of_parts = ['title', 'links', 'keywords', 'description']
+
+    coefs = [2, 1.5, 2, 2]
+
+    result = pickle.load(open(f"text.dump", "rb"))
+    # for i, part in enumerate(names_of_parts):
+    #     loaded = pickle.load(open(f"{part}.dump", "rb"))
+    #     for key, list_ in loaded.items():
+    #         for j, val in enumerate(list_):
+    #             result[key][j] += val * coefs[i]
+
+    map_docs_to_nums = [doc.index for doc in read_docs()]
+
+    res_file = open("sub_tf-idf_weighted.csv", "w")
+    res_file.write('QueryId,DocumentId\n')
+
+    for key, val in result.items():
+
+        st = np.argsort(val)
+
+        for index in range(10):
+            res_file.write(f"{key},{map_docs_to_nums[st[-index]]}\n")
+        print(f"{key} docs.")
 
 
 def agreggate_result():
-    names_of_parts = ['text', 'title']
-    extractors = [get_from_doc_text, get_from_doc_title]
+    names_of_parts = ['text', 'title', 'links', 'keywords', 'description']
+    extractors = [get_from_doc_text, get_from_doc_title, get_from_doc_links, get_from_doc_keywords,
+                  get_from_doc_description]
 
-    agr_res = []
     for i in range(len(names_of_parts)):
-        agr_res.append(if_idf_weighted(extractors[i], names_of_parts[i]))
+        if_idf_weighted(extractors[i], names_of_parts[i])
 
-    pickle.dump(agr_res, open("arg_res.dump", "wb"))
+    # agr_res = []
+    # for i in range(len(names_of_parts)):
+    #     agr_res.append(if_idf_weighted(extractors[i], names_of_parts[i]))
+    #
+    # pickle.dump(agr_res, open("arg_res.dump", "wb"))
 
 
 def get_doc2vec():
@@ -363,8 +413,45 @@ def go_parse():
         f.write(
             f"{urls[doc.doc_url]}\t{doc.doc_url}\t{' '.join(doc.title)}\t{' '.join(doc.keywords)}\t{' '.join(doc.links)}\t{' '.join(doc.text)}\t{' '.join(doc.description)}\n")
     f.close()
-    print (time.time() - start)
+    print(time.time() - start)
+
+
+def hack_submissions ():
+    queries = defaultdict (list)
+
+    sub = open ("sample.submission.text.relevance.spring.2018.csv", "r")
+    sub.readline()
+    for l in sub.readlines():
+        l = l[:-1]
+        spl = l.split(',')
+        queries[int(spl[0])].append (int(spl[1]))
+
+    m_que = defaultdict (list)
+    sub = open("sub_tf-idf.csv", "r")
+    sub.readline()
+    for l in sub.readlines():
+        l = l[:-1]
+        spl = l.split(',')
+        m_que[int(spl[0])].append(int(spl[1]))
+
+    res_file = open("sub_fixed_tf-idf.csv", "w")
+    res_file.write('QueryId,DocumentId\n')
+
+    for key, val in m_que.items():
+
+        v_res = [v for v in val if v in queries[key]]
+        to_add = 10 - len (v_res)
+
+        candidates = [q for q in queries[key] if q not in v_res]
+
+        res = v_res + np.random.choice(candidates, to_add, replace=False).tolist ()
+        for v in res:
+            res_file.write(f"{key},{v}\n")
 
 
 if __name__ == '__main__':
-    go_parse()
+    # go_parse()
+    # agreggate_result()
+    # final_res()
+    # if_idf()
+    hack_submissions ()

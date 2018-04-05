@@ -30,29 +30,29 @@ def html2text_bs_visible(raw_html):
     try:
         links = u' '.join(link.extract().get_text().lower() for link in soup('a'))
     except:
-        links = []
+        links = u''
     try:
         keywords = u' '.join(tag.attrs['content'] for tag in soup('meta') if
                              'name' in tag.attrs.keys() and tag.attrs['name'].strip().lower() in ['keywords'])
     except:
-        keywords = []
+        keywords = u''
 
     try:
         description = u' '.join(tag.attrs['content'] for tag in soup('meta') if
                                 'name' in tag.attrs.keys() and tag.attrs['name'].strip().lower() in [
                                     'description'])
     except:
-        description = []
+        description = u''
 
     for s in soup('meta'): s.decompose()
     try:
         title = u' '.join(link.extract().get_text().lower() for link in soup('title'))
     except:
-        title = []
+        title = u''
     try:
         body = soup.getText()
     except:
-        body = []
+        body = u''
 
     return title, keywords, links, body, description
 
