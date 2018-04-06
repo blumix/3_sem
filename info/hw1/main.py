@@ -170,47 +170,55 @@ def if_idf():
     # docs = prepare_dict(cut=20)
     queries = read_queries()
 
-    sw = ' '.join(stopwords.words('russian'))
-
-    stopwords_norm = DocStreamReader.clear_text(sw)
-
-    print(stopwords_norm)
-
-    gen_dict = gensim.corpora.Dictionary(
-        [[w for w in doc.title if w not in stopwords_norm] + [w for w in doc.text if w not in stopwords_norm] + [w for w
-                                                                                                                 in
-                                                                                                                 doc.links
-                                                                                                                 if
-                                                                                                                 w not in stopwords_norm] + [
-             w for w in doc.keywords if w not in stopwords_norm] + [w for w in doc.description if
-                                                                    w not in stopwords_norm] for doc
-         in read_docs()], prune_at=None)
-    # gen_dict.filter_extremes(no_below=1, no_above=1, keep_n=None)
-    gen_dict.save("gen_dict.dict")
+    # sw = ' '.join(stopwords.words('russian'))
     #
-
-    raw_corpus = [gen_dict.doc2bow(
-        [w for w in doc.title if w not in stopwords_norm] + [w for w in doc.text if w not in stopwords_norm] + [w for w
-                                                                                                                in
-                                                                                                                doc.links
-                                                                                                                if
-                                                                                                                w not in stopwords_norm] + [
-            w for w in doc.keywords if w not in stopwords_norm] + [w for w in doc.description if
-                                                                   w not in stopwords_norm]) for doc in read_docs()]
-    gensim.corpora.MmCorpus.serialize('corpa.mm', raw_corpus)  # store to disk
+    # stopwords_norm = DocStreamReader.clear_text(sw)
     #
+    # print(stopwords_norm)
+    #
+    # gen_dict = gensim.corpora.Dictionary(
+    #     [[w for w in doc.title if w not in stopwords_norm] + [w for w in doc.text if w not in stopwords_norm] + [w for w
+    #                                                                                                              in
+    #                                                                                                              doc.links
+    #                                                                                                              if
+    #                                                                                                              w not in stopwords_norm] + [
+    #          w for w in doc.keywords if w not in stopwords_norm] + [w for w in doc.description if
+    #                                                                 w not in stopwords_norm] for doc
+    #      in read_docs()], prune_at=None)
+    # # gen_dict.filter_extremes(no_below=1, no_above=1, keep_n=None)
+    # gen_dict.save("gen_dict.dict")
+    # #
+    #
+    # raw_corpus = [gen_dict.doc2bow(
+    #     [w for w in doc.title if w not in stopwords_norm] + [w for w in doc.text if w not in stopwords_norm] + [w for w
+    #                                                                                                             in
+    #                                                                                                             doc.links
+    #                                                                                                             if
+    #                                                                                                             w not in stopwords_norm] + [
+    #         w for w in doc.keywords if w not in stopwords_norm] + [w for w in doc.description if
+    #                                                                w not in stopwords_norm]) for doc in read_docs()]
+    # gensim.corpora.MmCorpus.serialize('corpa.mm', raw_corpus)  # store to disk
+    # #
     dictionary = gensim.corpora.Dictionary.load('gen_dict.dict')
-    corpus = gensim.corpora.MmCorpus('corpa.mm')
-    #
-    tfidf_model = gensim.models.TfidfModel(dictionary=dictionary)
-    index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
-    tfidf_model.save("tf_idf.model")
-    index_sparse.save("index_sparse.matrix")
+    # corpus = gensim.corpora.MmCorpus('corpa.mm')
+    # #
+    # tfidf_model = gensim.models.TfidfModel(dictionary=dictionary)
+    # index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
+    # tfidf_model.save("tf_idf.model")
+    # index_sparse.save("index_sparse.matrix")
     #
     tfidf_model = gensim.models.TfidfModel.load("tf_idf.model")
     index_sparse = gensim.similarities.SparseMatrixSimilarity.load("index_sparse.matrix")
 
     map_docs_to_nums = [doc.index for doc in read_docs()]
+
+    w_queries = defaultdict(list)
+    sub = open("sample.submission.text.relevance.spring.2018.csv", "r")
+    sub.readline()
+    for l in sub.readlines():
+        l = l[:-1]
+        spl = l.split(',')
+        w_queries[int(spl[0])].append(int(spl[1]))
 
     res_file = open("sub_tf-idf.csv", "w")
     res_file.write('QueryId,DocumentId\n')
@@ -219,9 +227,15 @@ def if_idf():
         query_bow = dictionary.doc2bow(q[1])
         # print(query_bow)
         query_tfidf = tfidf_model[query_bow]
-        index_sparse.num_best = 10
-        for index in index_sparse[query_tfidf]:
-            res_file.write(f"{q[0]},{map_docs_to_nums[index[0]]}\n")
+        index_sparse.num_best = None
+        d_i = 0
+        st = np.argsort(-index_sparse[query_tfidf])
+        for index in st:
+            if map_docs_to_nums[index] in w_queries[q[0]]:
+                res_file.write(f"{q[0]},{map_docs_to_nums[index]}\n")
+                d_i += 1
+            if d_i == 10:
+                break
         print(f"{i} docs.")
 
 
@@ -416,17 +430,17 @@ def go_parse():
     print(time.time() - start)
 
 
-def hack_submissions ():
-    queries = defaultdict (list)
+def hack_submissions():
+    queries = defaultdict(list)
 
-    sub = open ("sample.submission.text.relevance.spring.2018.csv", "r")
+    sub = open("sample.submission.text.relevance.spring.2018.csv", "r")
     sub.readline()
     for l in sub.readlines():
         l = l[:-1]
         spl = l.split(',')
-        queries[int(spl[0])].append (int(spl[1]))
+        queries[int(spl[0])].append(int(spl[1]))
 
-    m_que = defaultdict (list)
+    m_que = defaultdict(list)
     sub = open("sub_tf-idf.csv", "r")
     sub.readline()
     for l in sub.readlines():
@@ -440,11 +454,11 @@ def hack_submissions ():
     for key, val in m_que.items():
 
         v_res = [v for v in val if v in queries[key]]
-        to_add = 10 - len (v_res)
+        to_add = 10 - len(v_res)
 
         candidates = [q for q in queries[key] if q not in v_res]
 
-        res = v_res + np.random.choice(candidates, to_add, replace=False).tolist ()
+        res = v_res + np.random.choice(candidates, to_add, replace=False).tolist()
         for v in res:
             res_file.write(f"{key},{v}\n")
 
@@ -453,5 +467,5 @@ if __name__ == '__main__':
     # go_parse()
     # agreggate_result()
     # final_res()
-    # if_idf()
-    hack_submissions ()
+    if_idf()
+    # hack_submissions ()
