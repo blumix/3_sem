@@ -127,7 +127,10 @@ class document:
 def read_docs():
     f = open("new_documents.dump", 'r', encoding='utf-8')
 
+    i = 0
     for line in f.readlines():
+        sys.stderr.write(f"\r{i} doc read.")
+        i += 1
         yield document(line)
 
 
@@ -165,11 +168,11 @@ def get_model_doc2vec():
 from nltk.corpus import stopwords
 
 
-def if_idf():
-    # print(f"number of docs is:{sum(1 for _ in read_docs())}")
-    # docs = prepare_dict(cut=20)
-    queries = read_queries()
+def brand_new_tf_idf():
+    stopwords_norm = DocStreamReader.clear_text(' '.join(stopwords.words('russian')))
 
+
+def if_idf():
     # sw = ' '.join(stopwords.words('russian'))
     #
     # stopwords_norm = DocStreamReader.clear_text(sw)
@@ -200,36 +203,27 @@ def if_idf():
     # gensim.corpora.MmCorpus.serialize('corpa.mm', raw_corpus)  # store to disk
     # #
     dictionary = gensim.corpora.Dictionary.load('gen_dict.dict')
-    # corpus = gensim.corpora.MmCorpus('corpa.mm')
+    corpus = gensim.corpora.MmCorpus('corpa.mm')
     # #
-    # tfidf_model = gensim.models.TfidfModel(dictionary=dictionary)
-    # index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
+    # tfidf_model = gensim.models.TfidfModel(dictionary=dictionary)#, wglobal=wglob, wlocal=wloc)
+    index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
     # tfidf_model.save("tf_idf.model")
-    # index_sparse.save("index_sparse.matrix")
+    index_sparse.save("index_sparse.matrix")
     #
-    tfidf_model = gensim.models.TfidfModel.load("tf_idf.model")
+    # tfidf_model = gensim.models.TfidfModel.load("tf_idf.model")
     index_sparse = gensim.similarities.SparseMatrixSimilarity.load("index_sparse.matrix")
 
-    map_docs_to_nums = [doc.index for doc in read_docs()]
+    map_docs_to_nums = pickle.load(open("map_docs_to_nums.pickle", "rb"))
 
-    w_queries = defaultdict(list)
-    sub = open("sample.submission.text.relevance.spring.2018.csv", "r")
-    sub.readline()
-    for l in sub.readlines():
-        l = l[:-1]
-        spl = l.split(',')
-        w_queries[int(spl[0])].append(int(spl[1]))
+    w_queries = read_queries_to_scan()
 
     res_file = open("sub_tf-idf.csv", "w")
     res_file.write('QueryId,DocumentId\n')
 
-    for i, q in enumerate(queries.items()):
+    for i, q in enumerate(sorted(read_queries().items())):
         query_bow = dictionary.doc2bow(q[1])
-        # print(query_bow)
-        query_tfidf = tfidf_model[query_bow]
-        index_sparse.num_best = None
         d_i = 0
-        st = np.argsort(-index_sparse[query_tfidf])
+        st = np.argsort(-index_sparse[query_bow])
         for index in st:
             if map_docs_to_nums[index] in w_queries[q[0]]:
                 res_file.write(f"{q[0]},{map_docs_to_nums[index]}\n")
@@ -237,6 +231,17 @@ def if_idf():
             if d_i == 10:
                 break
         print(f"{i} docs.")
+
+
+def read_queries_to_scan():
+    w_queries = defaultdict(list)
+    sub = open("sample.submission.text.relevance.spring.2018.csv", "r")
+    sub.readline()
+    for l in sub.readlines():
+        l = l[:-1]
+        spl = l.split(',')
+        w_queries[int(spl[0])].append(int(spl[1]))
+    return w_queries
 
 
 def wglob(D, total_docs):
@@ -464,6 +469,8 @@ def hack_submissions():
 
 
 if __name__ == '__main__':
+    # map_docs_to_nums = [doc.index for doc in read_docs()]
+    # pickle.dump(map_docs_to_nums, open("map_docs_to_nums.pickle", "wb"))
     # go_parse()
     # agreggate_result()
     # final_res()
