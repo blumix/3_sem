@@ -8,6 +8,7 @@ from multiprocessing import Process
 
 import numpy as np
 from gensim.models.doc2vec import TaggedDocument
+from gensim.summarization.bm25 import BM25
 
 import DocStreamReader
 import sys
@@ -179,6 +180,53 @@ def get_rate(ti_doc, query_bow):
         if id in q_ids:
             res += value
     return res
+
+def bm25 ():
+    # stopwords_norm = DocStreamReader.clear_text(' '.join(stopwords.words('russian')))
+    # gen_dict = gensim.corpora.Dictionary(
+    #     [[w for w in extractor(doc) if w not in stopwords_norm] for doc in read_docs()], prune_at=None)
+    # gen_dict.save("gen_dict.dict")
+    # raw_corpus = [gen_dict.doc2bow([w for w in extractor(doc) if w not in stopwords_norm]) for doc in read_docs()]
+    # gensim.corpora.MmCorpus.serialize('corpa.mm', raw_corpus)  # store to disk
+    dictionary = gensim.corpora.Dictionary.load('gen_dict.dict')
+    corpus = gensim.corpora.MmCorpus('corpa.mm')
+    # tfidf_model = gensim.models.TfidfModel(dictionary=dictionary)#, wglobal=wglob, wlocal=wloc)
+    # index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
+    # tfidf_model.save("tf_idf.model")
+    # index_sparse.save("index_sparse.matrix")
+    #
+
+    bm25 = BM25(corpus)
+    average_idf = sum(map(lambda k: float(bm25.idf[k]), bm25.idf.keys())) / len(bm25.idf.keys())
+    # index = gensim.similarities.SparseMatrixSimilarity(lsi[corpus])
+
+    # index.save('lsa.index')
+    # index = gensim.similarities.MatrixSimilarity.load('lsa.index')
+    # tfidf_model = gensim.models.TfidfModel.load("tf_idf.model")
+    # index_sparse = gensim.similarities.SparseMatrixSimilarity.load("index_sparse.matrix")
+    # tf_idf_corpa = tfidf_model[corpus]
+
+    map_docs_to_nums = pickle.load(open("map_docs_to_nums.pickle", "rb"))
+
+    w_queries = read_queries_to_scan()
+
+    res_file = open("sub_bm25.csv", "w")
+    res_file.write('QueryId,DocumentId\n')
+
+    # q_rates = defaultdict(list)
+
+    for i, q in enumerate(sorted(read_queries().items())):
+        query_bow = dictionary.doc2bow(q[1])
+        d_i = 0
+        st = np.argsort(-np.array (bm25.get_scores(query_bow, average_idf)))
+        for index in st:
+            if map_docs_to_nums[index] in w_queries[q[0]]:
+                res_file.write(f"{q[0]},{map_docs_to_nums[index]}\n")
+                d_i += 1
+            if d_i == 10:
+                break
+        print(f"{i} docs.")
+
 
 
 def if_idf():
@@ -473,16 +521,16 @@ if __name__ == '__main__':
     # final_res()
     # if_idf()
     # hack_submissions ()
-
+    bm25()
     # for doc in read_docs():
     #     print(doc.description)
 
-    q_rates = pickle.load(open("q_rates.pickle", "rb"))
-
-    res_file = open("tf_idf_finaly.csv", "w")
-    res_file.write('QueryId,DocumentId\n')
-
-    for key, val in q_rates.items():
-        val.sort(key=lambda tup: tup[1], reverse=True)
-        for v in val[:10]:
-            res_file.write(f"{key},{v[0]}\n")
+    # q_rates = pickle.load(open("q_rates.pickle", "rb"))
+    #
+    # res_file = open("tf_idf_finaly.csv", "w")
+    # res_file.write('QueryId,DocumentId\n')
+    #
+    # for key, val in q_rates.items():
+    #     val.sort(key=lambda tup: tup[1], reverse=True)
+    #     for v in val[:10]:
+    #         res_file.write(f"{key},{v[0]}\n")
