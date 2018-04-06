@@ -121,7 +121,7 @@ class document:
         self.keywords = spl[3].lower().split(' ')
         self.links = spl[4].lower().split(' ')
         self.text = spl[5].lower().split(' ')
-        self.description = spl[6].lower().split(' ')
+        self.description = spl[6][:-1].lower().split(' ')
 
 
 def read_docs():
@@ -169,49 +169,35 @@ from nltk.corpus import stopwords
 
 
 def brand_new_tf_idf():
-    stopwords_norm = DocStreamReader.clear_text(' '.join(stopwords.words('russian')))
+    pass
+
+
+def get_rate(ti_doc, query_bow):
+    res = 0
+    q_ids = [q[0] for q in query_bow]
+    for id, value in ti_doc:
+        if id in q_ids:
+            res += value
+    return res
 
 
 def if_idf():
-    # sw = ' '.join(stopwords.words('russian'))
-    #
-    # stopwords_norm = DocStreamReader.clear_text(sw)
-    #
-    # print(stopwords_norm)
-    #
+    # stopwords_norm = DocStreamReader.clear_text(' '.join(stopwords.words('russian')))
     # gen_dict = gensim.corpora.Dictionary(
-    #     [[w for w in doc.title if w not in stopwords_norm] + [w for w in doc.text if w not in stopwords_norm] + [w for w
-    #                                                                                                              in
-    #                                                                                                              doc.links
-    #                                                                                                              if
-    #                                                                                                              w not in stopwords_norm] + [
-    #          w for w in doc.keywords if w not in stopwords_norm] + [w for w in doc.description if
-    #                                                                 w not in stopwords_norm] for doc
-    #      in read_docs()], prune_at=None)
-    # # gen_dict.filter_extremes(no_below=1, no_above=1, keep_n=None)
+    #     [[w for w in extractor(doc) if w not in stopwords_norm] for doc in read_docs()], prune_at=None)
     # gen_dict.save("gen_dict.dict")
-    # #
-    #
-    # raw_corpus = [gen_dict.doc2bow(
-    #     [w for w in doc.title if w not in stopwords_norm] + [w for w in doc.text if w not in stopwords_norm] + [w for w
-    #                                                                                                             in
-    #                                                                                                             doc.links
-    #                                                                                                             if
-    #                                                                                                             w not in stopwords_norm] + [
-    #         w for w in doc.keywords if w not in stopwords_norm] + [w for w in doc.description if
-    #                                                                w not in stopwords_norm]) for doc in read_docs()]
+    # raw_corpus = [gen_dict.doc2bow([w for w in extractor(doc) if w not in stopwords_norm]) for doc in read_docs()]
     # gensim.corpora.MmCorpus.serialize('corpa.mm', raw_corpus)  # store to disk
-    # #
     dictionary = gensim.corpora.Dictionary.load('gen_dict.dict')
     corpus = gensim.corpora.MmCorpus('corpa.mm')
-    # #
     # tfidf_model = gensim.models.TfidfModel(dictionary=dictionary)#, wglobal=wglob, wlocal=wloc)
-    index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
+    # index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
     # tfidf_model.save("tf_idf.model")
-    index_sparse.save("index_sparse.matrix")
+    # index_sparse.save("index_sparse.matrix")
     #
-    # tfidf_model = gensim.models.TfidfModel.load("tf_idf.model")
-    index_sparse = gensim.similarities.SparseMatrixSimilarity.load("index_sparse.matrix")
+    tfidf_model = gensim.models.TfidfModel.load("tf_idf.model")
+    # index_sparse = gensim.similarities.SparseMatrixSimilarity.load("index_sparse.matrix")
+    tf_idf_corpa = tfidf_model[corpus]
 
     map_docs_to_nums = pickle.load(open("map_docs_to_nums.pickle", "rb"))
 
@@ -220,17 +206,28 @@ def if_idf():
     res_file = open("sub_tf-idf.csv", "w")
     res_file.write('QueryId,DocumentId\n')
 
+    q_rates = defaultdict(list)
+
     for i, q in enumerate(sorted(read_queries().items())):
         query_bow = dictionary.doc2bow(q[1])
-        d_i = 0
-        st = np.argsort(-index_sparse[query_bow])
-        for index in st:
-            if map_docs_to_nums[index] in w_queries[q[0]]:
-                res_file.write(f"{q[0]},{map_docs_to_nums[index]}\n")
-                d_i += 1
-            if d_i == 10:
-                break
+
+        for id_num in w_queries[q[0]]:
+            if id_num not in map_docs_to_nums:
+                print(f"skipped {id_num}")
+                continue
+            ti_doc = tf_idf_corpa[map_docs_to_nums.index(id_num)]
+            q_rates[q[0]].append((id_num, get_rate(ti_doc, query_bow)))
+
+            # d_i = 0
+            # st = np.argsort(-index_sparse[query_bow])
+            # for index in st:
+            #     if map_docs_to_nums[index] in w_queries[q[0]]:
+            #         res_file.write(f"{q[0]},{map_docs_to_nums[index]}\n")
+            #         d_i += 1
+            #     if d_i == 10:
+            #         break
         print(f"{i} docs.")
+    pickle.dump(q_rates, open("q_rates.pickle", "wb"))
 
 
 def read_queries_to_scan():
@@ -474,5 +471,18 @@ if __name__ == '__main__':
     # go_parse()
     # agreggate_result()
     # final_res()
-    if_idf()
+    # if_idf()
     # hack_submissions ()
+
+    # for doc in read_docs():
+    #     print(doc.description)
+
+    q_rates = pickle.load(open("q_rates.pickle", "rb"))
+
+    res_file = open("tf_idf_finaly.csv", "w")
+    res_file.write('QueryId,DocumentId\n')
+
+    for key, val in q_rates.items():
+        val.sort(key=lambda tup: tup[1], reverse=True)
+        for v in val[:10]:
+            res_file.write(f"{key},{v[0]}\n")
