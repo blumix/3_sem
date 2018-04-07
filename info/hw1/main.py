@@ -534,3 +534,4 @@ if __name__ == '__main__':
     #     val.sort(key=lambda tup: tup[1], reverse=True)
     #     for v in val[:10]:
     #         res_file.write(f"{key},{v[0]}\n")
+    read_docs()
