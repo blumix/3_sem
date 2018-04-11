@@ -142,10 +142,10 @@ class Document:
 def read_docs():
     f = open("temp/new_documents.dump", 'r', encoding='utf-8')
 
-    #i = 0
+    # i = 0
     for line in f.readlines():
-        #sys.stderr.write(f"\r{i} doc read.")
-        #i += 1
+        # sys.stderr.write(f"\r{i} doc read.")
+        # i += 1
         yield Document(line)
 
 
@@ -202,6 +202,17 @@ def read_queries_to_scan():
         spl = l.split(',')
         w_queries[int(spl[0])].append(int(spl[1]))
     return w_queries
+
+
+def read_doc_to_query_index():
+    docs = {}
+    sub = open("data/sample.submission.text.relevance.spring.2018.csv", "r")
+    sub.readline()
+    for l in sub.readlines():
+        l = l[:-1]
+        spl = l.split(',')
+        docs[int(spl[1])] = int(spl[0])
+    return docs
 
 
 def get_from_doc_title(doc):

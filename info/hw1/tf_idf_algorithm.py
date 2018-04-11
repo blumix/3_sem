@@ -83,7 +83,7 @@ def one_query_job(query):
 
     docs_for_query = DSR.read_queries_to_scan()[query[0]]
 
-    docs = [doc for doc in DSR.read_docs () if doc.index in docs_for_query]
+    docs = [doc for doc in DSR.read_docs() if doc.index in docs_for_query]
 
     doc_ids = [doc.index for doc in docs]
 
@@ -101,17 +101,28 @@ def all_queries():
     global run_num
     res_file = open(f"result_{run_num}.csv", "w")
     res_file.write('QueryId,DocumentId\n')
-    #documents = [doc for doc in DSR.read_docs()]
+    # documents = [doc for doc in DSR.read_docs()]
     for query in DSR.read_queries().items():
         for doc_id in one_query_job(query):
-            print (query[0], doc_id)
+            print(query[0], doc_id)
             res_file.write(f"{query[0]},{doc_id}\n")
         logging.info(f"job for {query[0]} done.")
     res_file.close()
 
 
+def docs_aggrigator():
+    doc_to_query = DSR.read_doc_to_query_index()
+    queries = DSR.read_queries()
+    files = {qid: open(f"temp/docs_for_query_{qid}") for qid in queries.keys()}
+
+    for doc in DSR.read_docs():
+        files[doc_to_query[doc.index]].write(
+            f"{doc.index}\t{doc.doc_url}\t{' '.join(doc.title)}\t{' '.join(doc.keywords)}\t{' '.join(doc.links)}\t{' '.join(doc.text)}\t{' '.join(doc.description)}\n")
+
+
 def main():
-    all_queries()
+    # all_queries()
+    docs_aggrigator()
 
 
 if __name__ == '__main__':
