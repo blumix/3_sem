@@ -14,10 +14,11 @@ def get_cosine_sim(query, docs, extractor):
     dictionary = gensim.corpora.Dictionary(
         [[w for w in extractor(doc) if w not in stopwords_norm] for doc in docs], prune_at=None)
 
-    corpus = gensim.corpora.MmCorpus(
-        [dictionary.doc2bow([w for w in extractor(doc) if w not in stopwords_norm]) for doc in docs])
+    raw_corpus = [dictionary.doc2bow([w for w in extractor(doc) if w not in stopwords_norm]) for doc in docs]
+    gensim.corpora.MmCorpus.serialize(f'corpa_{query[0]}.mm', raw_corpus)
+    corpus = gensim.corpora.MmCorpus(f'corpa_{query[0]}.mm')
     index_sparse = gensim.similarities.SparseMatrixSimilarity(corpus, num_features=corpus.num_terms)
-    query_bow = dictionary.doc2bow(query)
+    query_bow = dictionary.doc2bow(query[1])
     index_sparse.num_best = None
     return index_sparse[query_bow]
 
@@ -82,28 +83,30 @@ def one_query_job(query):
 
     docs_for_query = DSR.read_queries_to_scan()[query[0]]
 
-    docs = [doc for doc in DSR.read_docs() if doc.index in docs_for_query]
+    docs = [doc for doc in DSR.read_docs () if doc.index in docs_for_query]
 
     doc_ids = [doc.index for doc in docs]
 
     res_scores = np.zeros(len(docs))
     for key in content_types.keys():
-        cur_res = np.array(get_cosine_sim(query[1], docs, content_types[key])) * content_multipliers[key]
+        cur_res = np.array(get_cosine_sim(query, docs, content_types[key])) * content_multipliers[key]
         res_scores += cur_res
 
-    best = np.argsort(-res_scores)[:5]
+    best = np.argsort(-res_scores)[:10]
 
-    return doc_ids[best]
+    return [doc_ids[best_one] for best_one in best]
 
 
 def all_queries():
     global run_num
     res_file = open(f"result_{run_num}.csv", "w")
     res_file.write('QueryId,DocumentId\n')
+    #documents = [doc for doc in DSR.read_docs()]
     for query in DSR.read_queries().items():
         for doc_id in one_query_job(query):
-            res_file.write(f"{q[0]},{doc_id}\n")
-        logging.info(f"job for {q[0]} done.")
+            print (query[0], doc_id)
+            res_file.write(f"{query[0]},{doc_id}\n")
+        logging.info(f"job for {query[0]} done.")
     res_file.close()
 
 
@@ -116,3 +119,4 @@ if __name__ == '__main__':
     run_num += 1
     open("run_number", "w").write("{}".format(run_num))
     print("Run number: ", run_num)
+    main()

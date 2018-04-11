@@ -142,10 +142,10 @@ class Document:
 def read_docs():
     f = open("temp/new_documents.dump", 'r', encoding='utf-8')
 
-    i = 0
+    #i = 0
     for line in f.readlines():
-        sys.stderr.write(f"\r{i} doc read.")
-        i += 1
+        #sys.stderr.write(f"\r{i} doc read.")
+        #i += 1
         yield Document(line)
 
 
