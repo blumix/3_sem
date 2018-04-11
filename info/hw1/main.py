@@ -1,52 +1,17 @@
-import pickle
-
-import time
-
 import multiprocessing
+import pickle
+import sys
+import time
 from collections import OrderedDict, defaultdict
-from multiprocessing import Process
+from os import listdir
 
+import gensim
 import numpy as np
 from gensim.models.doc2vec import TaggedDocument
 from gensim.summarization.bm25 import BM25
+from nltk.corpus import stopwords
 
 import DocStreamReader
-import sys
-from os import listdir
-from pymystem3 import Mystem
-
-import gensim
-
-
-def get_all_dat_files(folder):
-    f_folders = [folder + f for f in listdir(folder)]
-    files = []
-    for fold in f_folders:
-        files.extend([fold + '/' + f for f in listdir(fold)])
-    return files
-
-
-def read_queries(f_name='queries.numerate.txt'):
-    queries = {}
-    with open(f_name, encoding='utf-8') as f:
-        content = f.readlines()
-    content = [x.strip() for x in content]
-    for url in content:
-        split = url.split('\t')
-        queries[int(split[0])] = DocStreamReader.clear_text(split[1])
-    return queries
-
-
-def read_urls(f_name='urls.numerate.txt'):
-    urls = {}
-    with open(f_name) as f:
-        content = f.readlines()
-    content = [x.strip() for x in content]
-    for url in content:
-        split = url.split('\t')
-        urls[split[1]] = int(split[0])
-    return urls
-
 
 def prepare_dict(cut=None):
     files = get_all_dat_files('content/')
@@ -113,26 +78,6 @@ def change_docs_dict(docs):
         f.write(f"{urls[doc[1].doc_url]}\t{doc[1].doc_url}\t{' '.join(doc[1].title)}\t{' '.join(doc[1].doc)}\n")
 
 
-class document:
-    def __init__(self, line):
-        spl = line.split("\t")
-        self.index = int(spl[0])
-        self.url = spl[1]
-        self.title = spl[2].lower().split(' ')
-        self.keywords = spl[3].lower().split(' ')
-        self.links = spl[4].lower().split(' ')
-        self.text = spl[5].lower().split(' ')
-        self.description = spl[6][:-1].lower().split(' ')
-
-
-def read_docs():
-    f = open("new_documents.dump", 'r', encoding='utf-8')
-
-    i = 0
-    for line in f.readlines():
-        sys.stderr.write(f"\r{i} doc read.")
-        i += 1
-        yield document(line)
 
 
 def get_model_doc2vec():
@@ -166,13 +111,6 @@ def get_model_doc2vec():
     return model_dm
 
 
-from nltk.corpus import stopwords
-
-
-def brand_new_tf_idf():
-    pass
-
-
 def get_rate(ti_doc, query_bow):
     res = 0
     q_ids = [q[0] for q in query_bow]
@@ -181,7 +119,8 @@ def get_rate(ti_doc, query_bow):
             res += value
     return res
 
-def bm25 ():
+
+def bm25():
     # stopwords_norm = DocStreamReader.clear_text(' '.join(stopwords.words('russian')))
     # gen_dict = gensim.corpora.Dictionary(
     #     [[w for w in extractor(doc) if w not in stopwords_norm] for doc in read_docs()], prune_at=None)
@@ -218,7 +157,7 @@ def bm25 ():
     for i, q in enumerate(sorted(read_queries().items())):
         query_bow = dictionary.doc2bow(q[1])
         d_i = 0
-        st = np.argsort(-np.array (bm25.get_scores(query_bow, average_idf)))
+        st = np.argsort(-np.array(bm25.get_scores(query_bow, average_idf)))
         for index in st:
             if map_docs_to_nums[index] in w_queries[q[0]]:
                 res_file.write(f"{q[0]},{map_docs_to_nums[index]}\n")
@@ -228,13 +167,12 @@ def bm25 ():
         print(f"{i} docs.")
 
 
-
-def if_idf():
-    # stopwords_norm = DocStreamReader.clear_text(' '.join(stopwords.words('russian')))
-    # gen_dict = gensim.corpora.Dictionary(
-    #     [[w for w in extractor(doc) if w not in stopwords_norm] for doc in read_docs()], prune_at=None)
-    # gen_dict.save("gen_dict.dict")
-    # raw_corpus = [gen_dict.doc2bow([w for w in extractor(doc) if w not in stopwords_norm]) for doc in read_docs()]
+def if_idf(extractor):
+    stopwords_norm = DocStreamReader.clear_text(' '.join(stopwords.words('russian')))
+    gen_dict = gensim.corpora.Dictionary(
+        [[w for w in extractor(doc) if w not in stopwords_norm] for doc in read_docs()], prune_at=None)
+    gen_dict.save("gen_dict.dict")
+    raw_corpus = [gen_dict.doc2bow([w for w in extractor(doc) if w not in stopwords_norm]) for doc in read_docs()]
     # gensim.corpora.MmCorpus.serialize('corpa.mm', raw_corpus)  # store to disk
     dictionary = gensim.corpora.Dictionary.load('gen_dict.dict')
     corpus = gensim.corpora.MmCorpus('corpa.mm')
@@ -297,24 +235,6 @@ def wloc(f):
     return 1 + np.log(f)
 
 
-def get_from_doc_title(doc):
-    return doc.title
-
-
-def get_from_doc_text(doc):
-    return doc.text
-
-
-def get_from_doc_links(doc):
-    return doc.links
-
-
-def get_from_doc_keywords(doc):
-    return doc.keywords
-
-
-def get_from_doc_description(doc):
-    return doc.description
 
 
 def if_idf_weighted(get_from_doc, cur_name_of_part):
@@ -466,18 +386,6 @@ def get_doc2vec():
 #         for ind in reversed(top_indexes):
 #             print(map_docs_to_nums[ind], result[ind])
 
-def go_parse():
-    urls = read_urls()
-    f = open("new_documents.dump", "w", encoding='utf-8')
-
-    start = time.time()
-    files = get_all_dat_files('content/')
-    s_parser = DocStreamReader.load_files_multiprocess(files)
-    for doc in s_parser:
-        f.write(
-            f"{urls[doc.doc_url]}\t{doc.doc_url}\t{' '.join(doc.title)}\t{' '.join(doc.keywords)}\t{' '.join(doc.links)}\t{' '.join(doc.text)}\t{' '.join(doc.description)}\n")
-    f.close()
-    print(time.time() - start)
 
 
 def hack_submissions():
