@@ -149,6 +149,16 @@ def read_docs():
         yield Document(line)
 
 
+def read_docs_for_query(qid):
+    f = open(f"temp/docs_for_query_{qid}", 'r', encoding='utf-8')
+
+    # i = 0
+    for line in f.readlines():
+        # sys.stderr.write(f"\r{i} doc read.")
+        # i += 1
+        yield Document(line)
+
+
 def get_all_dat_files(folder):
     f_folders = [folder + f for f in listdir(folder)]
     files = []

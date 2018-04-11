@@ -81,9 +81,7 @@ def one_query_job(query):
                            'links': 0.1, 'text': 0.7,
                            'description': 1.5}
 
-    docs_for_query = DSR.read_queries_to_scan()[query[0]]
-
-    docs = [doc for doc in DSR.read_docs() if doc.index in docs_for_query]
+    docs = [doc for doc in DSR.read_docs_for_query(query[0])]
 
     doc_ids = [doc.index for doc in docs]
 
