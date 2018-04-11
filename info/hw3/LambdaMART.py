@@ -10,7 +10,10 @@ import datetime
 
 import logging
 
+# from numba import jit
 
+
+# @jit
 def dcg(scores):
     """
         Returns the DCG value of the list of scores.
@@ -27,6 +30,7 @@ def dcg(scores):
     return np.sum([(np.power(2, scores[i]) - 1) / np.log2(i + 2) for i in range(len(scores))])
 
 
+# @jit
 def dcg_k(scores, k):
     """
         Returns the DCG value of the list of scores and truncates to k values.
@@ -48,6 +52,7 @@ def dcg_k(scores, k):
     ])
 
 
+# @jit
 def ideal_dcg(scores):
     """
         Returns the Ideal DCG value of the list of scores.
@@ -65,6 +70,7 @@ def ideal_dcg(scores):
     return dcg(scores)
 
 
+# @jit
 def ideal_dcg_k(scores, k):
     """
         Returns the Ideal DCG value of the list of scores and truncates to k values.
@@ -84,6 +90,7 @@ def ideal_dcg_k(scores, k):
     return dcg_k(scores, k)
 
 
+# @jit
 def single_dcg(scores, i, j):
     """
         Returns the DCG value at a single point.
@@ -103,7 +110,7 @@ def single_dcg(scores, i, j):
     """
     return (np.power(2, scores[i]) - 1) / np.log2(j + 2)
 
-
+# @jit
 def get_pairs(true_scores):
     """
         Returns pairs of indexes where the first value in the pair has a higher score than the second value in the pair.
@@ -124,6 +131,7 @@ def get_pairs(true_scores):
                 yield (i, j)
 
 
+# @jit
 def compute_lambda(args):
     """
         Returns the lambda and w values for a given query.
@@ -163,8 +171,7 @@ def compute_lambda(args):
         if (j, j) not in single_dcgs:
             single_dcgs[(j, j)] = single_dcg(true_scores, j, j)
         single_dcgs[(j, i)] = single_dcg(true_scores, j, i)
-    if pairs_num == 0:
-        print(f"zero result queue {query_key}")
+
     for i, j in get_pairs(true_scores):
         z_ndcg = abs(single_dcgs[(i, j)] - single_dcgs[(i, i)] + single_dcgs[(j, i)] - single_dcgs[(j, j)]) / idcg
         rho = 1 / (1 + np.exp(predicted_scores[i] - predicted_scores[j]))
@@ -179,6 +186,7 @@ def compute_lambda(args):
     return lambdas[rev_indexes], w[rev_indexes], query_key
 
 
+# @jit
 def group_queries(training_data, qid_index):
     """
         Returns a dictionary that groups the documents by their query ids.
@@ -221,12 +229,12 @@ class LambdaMART:
         self.learning_rate = learning_rate
         self.trees = []
 
-    def fit(self):
+    def fit(self, test_data, save_period=10):
         """
         Fits the model on the training data.
         Returns
         -------
-            yields scores for current prediction.
+            yields scores for test data if it's not None.
         """
         start_time = time.time()
 
@@ -280,14 +288,19 @@ class LambdaMART:
             predicted_scores += prediction * self.learning_rate
             tree_times.append(time.time() - start_tree_time)
 
+            if k % save_period == 0:
+                self.save(f"temp/temp_model_{k}")
+                logging.info("saved")
+
             logging.info(
                 f"Training {k + 1} tree done. Time spent: {datetime.timedelta(seconds=tree_times[-1])}. " +
                 f"Estimated time: {datetime.timedelta(seconds=np.mean (tree_times) * (self.number_of_trees - k -1))}.")
-            yield predicted_scores
+
+            yield predicted_scores, self.predict(test_data)
         logging.info(f"Done. Time Elapsed:{datetime.timedelta(seconds=time.time() - start_time)}")
         pass
 
-    def predict(self, data):
+    def predict(self, data, num_of_trees=None):
         """
         Predicts the scores for the test dataset.
         Parameters
@@ -305,8 +318,10 @@ class LambdaMART:
         predicted_scores = np.ones(len(data))
         for query in query_indexes:
             results = np.ones(len(query_indexes[query]))
-            for tree in self.trees:
+            for i, tree in enumerate (self.trees):
                 results += self.learning_rate * tree.predict(data[query_indexes[query], 1:])
+                if (num_of_trees is not None) and i > num_of_trees:
+                    break
             predicted_scores[query_indexes[query]] = results
         return predicted_scores
 
