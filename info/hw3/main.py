@@ -25,6 +25,7 @@ def main():
         ind = test[test.QID == q].index
 
         print(q)
+
         sd = np.argsort(scores[ind])
         lem = len(sd)
         if lem > 5:

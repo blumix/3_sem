@@ -236,14 +236,16 @@ class LambdaMART:
         """
         Fits the model on the training data.
         """
-
+        print ("start creating")
         predicted_scores = np.zeros(len(self.training_data))
         query_indexes = group_queries(self.training_data, 1)
         query_keys = query_indexes.keys()
         true_scores = [self.training_data[query_indexes[query], 0] for query in query_keys]
+        print ("true scores obtained")
         good_ij_pairs = get_pairs(true_scores)
-        tree_data = pd.DataFrame(self.training_data[:, 2:7])
-        labels = self.training_data[:, 0]
+        print("pairs obtained")
+        #tree_data = pd.DataFrame(self.training_data[:, 2:7])
+        #labels = self.training_data[:, 0]
 
         # ideal dcg calculation
         idcg = [ideal_dcg(scores) for scores in true_scores]
