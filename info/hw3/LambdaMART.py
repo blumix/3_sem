@@ -1,13 +1,19 @@
+import time
 from collections import defaultdict
 
 import numpy as np
 
 from sklearn.tree import DecisionTreeRegressor
 from multiprocessing import Pool
-import pandas as pd
 import pickle
+import datetime
+
+import logging
+
+# from numba import jit
 
 
+# @jit
 def dcg(scores):
     """
         Returns the DCG value of the list of scores.
@@ -21,12 +27,10 @@ def dcg(scores):
         DCG_val: int
             This is the value of the DCG on the given scores
     """
-    return np.sum([
-        (np.power(2, scores[i]) - 1) / np.log2(i + 2)
-        for i in range(len(scores))
-    ])
+    return np.sum([(np.power(2, scores[i]) - 1) / np.log2(i + 2) for i in range(len(scores))])
 
 
+# @jit
 def dcg_k(scores, k):
     """
         Returns the DCG value of the list of scores and truncates to k values.
@@ -48,6 +52,7 @@ def dcg_k(scores, k):
     ])
 
 
+# @jit
 def ideal_dcg(scores):
     """
         Returns the Ideal DCG value of the list of scores.
@@ -65,6 +70,7 @@ def ideal_dcg(scores):
     return dcg(scores)
 
 
+# @jit
 def ideal_dcg_k(scores, k):
     """
         Returns the Ideal DCG value of the list of scores and truncates to k values.
@@ -84,6 +90,7 @@ def ideal_dcg_k(scores, k):
     return dcg_k(scores, k)
 
 
+# @jit
 def single_dcg(scores, i, j):
     """
         Returns the DCG value at a single point.
@@ -103,7 +110,28 @@ def single_dcg(scores, i, j):
     """
     return (np.power(2, scores[i]) - 1) / np.log2(j + 2)
 
+# @jit
+def get_pairs(true_scores):
+    """
+        Returns pairs of indexes where the first value in the pair has a higher score than the second value in the pair.
+        Parameters
+        ----------
+        true_scores : list of int
+            Contain a list of scores
 
+        Returns
+        -------
+        query_pair : list of pairs
+            This contains a list of pairs of indexes in scores.
+    """
+
+    for i in range(len(true_scores)):
+        for j in range(len(true_scores)):
+            if true_scores[i] > true_scores[j]:
+                yield (i, j)
+
+
+# @jit
 def compute_lambda(args):
     """
         Returns the lambda and w values for a given query.
@@ -123,7 +151,7 @@ def compute_lambda(args):
             This is the query id these values refer to
     """
 
-    true_scores, predicted_scores, good_ij_pairs, idcg, query_key = args
+    true_scores, predicted_scores, idcg, query_key = args
     num_docs = len(true_scores)
     sorted_indexes = np.argsort(predicted_scores)[::-1]
     rev_indexes = np.argsort(sorted_indexes)
@@ -133,8 +161,10 @@ def compute_lambda(args):
     lambdas = np.zeros(num_docs)
     w = np.zeros(num_docs)
 
+    pairs_num = 0
     single_dcgs = {}
-    for i, j in good_ij_pairs:
+    for i, j in get_pairs(true_scores):
+        pairs_num += 1
         if (i, i) not in single_dcgs:
             single_dcgs[(i, i)] = single_dcg(true_scores, i, i)
         single_dcgs[(i, j)] = single_dcg(true_scores, i, j)
@@ -142,7 +172,7 @@ def compute_lambda(args):
             single_dcgs[(j, j)] = single_dcg(true_scores, j, j)
         single_dcgs[(j, i)] = single_dcg(true_scores, j, i)
 
-    for i, j in good_ij_pairs:
+    for i, j in get_pairs(true_scores):
         z_ndcg = abs(single_dcgs[(i, j)] - single_dcgs[(i, i)] + single_dcgs[(j, i)] - single_dcgs[(j, j)]) / idcg
         rho = 1 / (1 + np.exp(predicted_scores[i] - predicted_scores[j]))
         rho_complement = 1.0 - rho
@@ -153,10 +183,10 @@ def compute_lambda(args):
         w_val = rho * rho_complement * z_ndcg
         w[i] += w_val
         w[j] += w_val
-
     return lambdas[rev_indexes], w[rev_indexes], query_key
 
 
+# @jit
 def group_queries(training_data, qid_index):
     """
         Returns a dictionary that groups the documents by their query ids.
@@ -180,35 +210,8 @@ def group_queries(training_data, qid_index):
     return query_indexes
 
 
-def get_pairs(scores):
-    """
-        Returns pairs of indexes where the first value in the pair has a higher score than the second value in the pair.
-        Parameters
-        ----------
-        scores : list of int
-            Contain a list of numbers
-
-        Returns
-        -------
-        query_pair : list of pairs
-            This contains a list of pairs of indexes in scores.
-    """
-
-    query_pair = []
-    for query_scores in scores:
-        temp = sorted(query_scores, reverse=True)
-        pairs = []
-        for i in range(len(temp)):
-            for j in range(len(temp)):
-                if temp[i] > temp[j]:
-                    pairs.append((i, j))
-        query_pair.append(pairs)
-    return query_pair
-
-
 class LambdaMART:
-
-    def __init__(self, training_data=None, number_of_trees=5, learning_rate=0.1, tree_type='sklearn'):
+    def __init__(self, training_data=None, number_of_trees=10, learning_rate=0.1):
         """
         This is the constructor for the LambdaMART object.
         Parameters
@@ -219,61 +222,85 @@ class LambdaMART:
             Number of trees LambdaMART goes through
         learning_rate : float (default: 0.1)
             Rate at which we update our prediction with each tree
-        tree_type : string (default: "sklearn")
-            Either "sklearn" for using Sklearn implementation of the tree of "original" 
-            for using our implementation
         """
 
-        if tree_type != 'sklearn' and tree_type != 'original':
-            raise ValueError('The "tree_type" must be "sklearn" or "original"')
         self.training_data = training_data
         self.number_of_trees = number_of_trees
         self.learning_rate = learning_rate
         self.trees = []
-        self.tree_type = tree_type
 
-    def fit(self):
+    def fit(self, test_data, save_period=10):
         """
         Fits the model on the training data.
+        Returns
+        -------
+            yields scores for test data if it's not None.
         """
-        print ("start creating")
-        predicted_scores = np.zeros(len(self.training_data))
+        start_time = time.time()
+
+        logging.info('Running fit job.')
         query_indexes = group_queries(self.training_data, 1)
+        logging.info('Queries grouped.')
         query_keys = query_indexes.keys()
         true_scores = [self.training_data[query_indexes[query], 0] for query in query_keys]
-        print ("true scores obtained")
-        good_ij_pairs = get_pairs(true_scores)
-        print("pairs obtained")
-        #tree_data = pd.DataFrame(self.training_data[:, 2:7])
-        #labels = self.training_data[:, 0]
+        logging.info('True scores obtained.')
+        predicted_scores = np.ones(len(self.training_data)) * np.mean(self.training_data[:, 0])
+        logging.info('Prediction defaults created.')
 
         # ideal dcg calculation
         idcg = [ideal_dcg(scores) for scores in true_scores]
+        logging.info("Ideal dcg's calculated")
 
+        tree_times = []
         for k in range(self.number_of_trees):
-            print('Tree %d' % (k))
+            start_tree_time = time.time()
+            logging.info(f"Training {k + 1} tree...")
             lambdas = np.zeros(len(predicted_scores))
             w = np.zeros(len(predicted_scores))
             pred_scores = [predicted_scores[query_indexes[query]] for query in query_keys]
 
             pool = Pool()
             for lambda_val, w_val, query_key in pool.map(compute_lambda,
-                                                         zip(true_scores, pred_scores, good_ij_pairs, idcg, query_keys),
+                                                         zip(true_scores, pred_scores, idcg, query_keys),
                                                          chunksize=1):
                 indexes = query_indexes[query_key]
                 lambdas[indexes] = lambda_val
                 w[indexes] = w_val
             pool.close()
+            logging.info('Lambdas calculated.')
 
-            if self.tree_type == 'sklearn':
-                # Sklearn implementation of the tree			
-                tree = DecisionTreeRegressor(max_depth=50)
-                tree.fit(self.training_data[:, 2:], lambdas)
-                self.trees.append(tree)
-                prediction = tree.predict(self.training_data[:, 2:])
-                predicted_scores += prediction * self.learning_rate
+            tree = DecisionTreeRegressor(max_depth=5)
+            tree.fit(self.training_data[:, 2:], lambdas)
+            logging.info('Tree constructed.')
 
-    def predict(self, data):
+            nodes = tree.tree_.apply(self.training_data[:, 2:].astype(np.float32))
+            for n in set(nodes):
+                up = np.sum(lambdas[nodes == n])
+                down = np.sum(w[nodes == n])
+                if down == 0:
+                    print(f"{up}/{down}, node {n}")
+                tree.tree_.value[n] = np.array([up / down]).reshape(
+                    tree.tree_.value[n].shape)
+            logging.info('Weights updated.')
+
+            self.trees.append(tree)
+            prediction = tree.predict(self.training_data[:, 2:])
+            predicted_scores += prediction * self.learning_rate
+            tree_times.append(time.time() - start_tree_time)
+
+            if k % save_period == 0:
+                self.save(f"temp/temp_model_{k}")
+                logging.info("saved")
+
+            logging.info(
+                f"Training {k + 1} tree done. Time spent: {datetime.timedelta(seconds=tree_times[-1])}. " +
+                f"Estimated time: {datetime.timedelta(seconds=np.mean (tree_times) * (self.number_of_trees - k -1))}.")
+
+            yield predicted_scores, self.predict(test_data)
+        logging.info(f"Done. Time Elapsed:{datetime.timedelta(seconds=time.time() - start_time)}")
+        pass
+
+    def predict(self, data, num_of_trees=None):
         """
         Predicts the scores for the test dataset.
         Parameters
@@ -288,11 +315,13 @@ class LambdaMART:
         """
         data = np.array(data)
         query_indexes = group_queries(data, 0)
-        predicted_scores = np.zeros(len(data))
+        predicted_scores = np.ones(len(data))
         for query in query_indexes:
-            results = np.zeros(len(query_indexes[query]))
-            for tree in self.trees:
+            results = np.ones(len(query_indexes[query]))
+            for i, tree in enumerate (self.trees):
                 results += self.learning_rate * tree.predict(data[query_indexes[query], 1:])
+                if (num_of_trees is not None) and i > num_of_trees:
+                    break
             predicted_scores[query_indexes[query]] = results
         return predicted_scores
 
@@ -355,6 +384,5 @@ class LambdaMART:
         model = pickle.load(open(fname, "rb"))
         self.training_data = model.training_data
         self.number_of_trees = model.number_of_trees
-        self.tree_type = model.tree_type
         self.learning_rate = model.learning_rate
         self.trees = model.trees

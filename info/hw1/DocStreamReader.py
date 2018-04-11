@@ -1,11 +1,14 @@
 import re
-from collections import namedtuple
-from nltk.corpus import stopwords
-from pymystem3 import Mystem
+import sys
+from collections import namedtuple, defaultdict
+from datetime import time
+from os import listdir
+
 from bs4 import BeautifulSoup
+from pymystem3 import Mystem
+import logging
 
 TRACE_NUM = 1000
-import logging
 
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', level=logging.INFO, datefmt='%H:%M:%S')
 
@@ -122,3 +125,100 @@ def load_files_multiprocess(input_file_name):
             yield item
 
     for process in processes: process.join()
+
+
+class Document:
+    def __init__(self, line):
+        spl = line.split("\t")
+        self.index = int(spl[0])
+        self.url = spl[1]
+        self.title = spl[2].lower().split(' ')
+        self.keywords = spl[3].lower().split(' ')
+        self.links = spl[4].lower().split(' ')
+        self.text = spl[5].lower().split(' ')
+        self.description = spl[6][:-1].lower().split(' ')
+
+
+def read_docs():
+    f = open("temp/new_documents.dump", 'r', encoding='utf-8')
+
+    i = 0
+    for line in f.readlines():
+        sys.stderr.write(f"\r{i} doc read.")
+        i += 1
+        yield Document(line)
+
+
+def get_all_dat_files(folder):
+    f_folders = [folder + f for f in listdir(folder)]
+    files = []
+    for fold in f_folders:
+        files.extend([fold + '/' + f for f in listdir(fold)])
+    return files
+
+
+def go_parse():
+    urls = read_urls()
+    f = open("temp/new_documents.dump", "w", encoding='utf-8')
+
+    start = time.time()
+    files = get_all_dat_files('content/')
+    s_parser = load_files_multiprocess(files)
+    for doc in s_parser:
+        f.write(
+            f"{urls[doc.doc_url]}\t{doc.doc_url}\t{' '.join(doc.title)}\t{' '.join(doc.keywords)}\t{' '.join(doc.links)}\t{' '.join(doc.text)}\t{' '.join(doc.description)}\n")
+    f.close()
+    print(time.time() - start)
+
+
+def read_queries(f_name='data/queries.numerate.txt'):
+    queries = {}
+    with open(f_name, encoding='utf-8') as f:
+        content = f.readlines()
+    content = [x.strip() for x in content]
+    for url in content:
+        split = url.split('\t')
+        queries[int(split[0])] = clear_text(split[1])
+    return queries
+
+
+def read_urls(f_name='data/urls.numerate.txt'):
+    urls = {}
+    with open(f_name) as f:
+        content = f.readlines()
+    content = [x.strip() for x in content]
+    for url in content:
+        split = url.split('\t')
+        urls[split[1]] = int(split[0])
+    return urls
+
+
+def read_queries_to_scan():
+    w_queries = defaultdict(list)
+    sub = open("data/sample.submission.text.relevance.spring.2018.csv", "r")
+    sub.readline()
+    for l in sub.readlines():
+        l = l[:-1]
+        spl = l.split(',')
+        w_queries[int(spl[0])].append(int(spl[1]))
+    return w_queries
+
+
+def get_from_doc_title(doc):
+    return doc.title
+
+
+def get_from_doc_text(doc):
+    return doc.text
+
+
+def get_from_doc_links(doc):
+    return doc.links
+
+
+def get_from_doc_keywords(doc):
+    return doc.keywords
+
+
+def get_from_doc_description(doc):
+    return doc.description
