@@ -75,7 +75,7 @@ def main():
     X_columns = [col for col in train.columns if col[0] == u'X']
     train_colums = ['Y', 'QID'] + X_columns
 
-    train_set = np.random.choice(list(set(train.QID)), int(len(set(train.QID)) * 0.95), replace=False)
+    train_set = np.random.choice(list(set(train.QID)), int(len(set(train.QID))), replace=False)
     test_set = [qid for qid in set(train.QID) if qid not in train_set]
 
     test = train[train.QID.isin(test_set)]
@@ -84,7 +84,7 @@ def main():
     test = test.reset_index(drop=True)
 
     test_columns = ['QID'] + X_columns
-    predictor = LambdaMART.LambdaMART(training_data=train.as_matrix(columns=train_colums), number_of_trees=2000)
+    predictor = LambdaMART.LambdaMART(training_data=train.as_matrix(columns=train_colums), number_of_trees=2000, learning_rate=1.0)
 
     ndcg_train = []
     ndcg_test = []
@@ -102,27 +102,27 @@ def main():
             n_train.append(ndcg_res)
             # error_train += (ndcg_my - ndcg_res) ** 2
 
-        n_test = []
-        for qid in set(test.QID):
-            ind = test[test.QID == qid].index
-
-            my_sort = np.argsort(-scores_test[ind])
-            ndcg_res = LambdaMART.dcg_k(test[test.QID == qid].Y.as_matrix()[my_sort], 5) / LambdaMART.ideal_dcg_k(
-                test[test.QID == qid].Y.as_matrix(), 5)
-            # ndcg_my = LambdaMART.dcg_k(scores_test[ind], 5) / LambdaMART.ideal_dcg_k(scores_test[ind], 5)
-            # ndcg_res = LambdaMART.dcg_k(test[test.QID == qid].Y.as_matrix(), 5) / LambdaMART.ideal_dcg_k(
-            #     test[test.QID == qid].Y.as_matrix(), 5)
-            n_test.append(ndcg_res)
-            # error_test += (ndcg_my - ndcg_res) ** 2
+        # n_test = []
+        # for qid in set(test.QID):
+        #     ind = test[test.QID == qid].index
+        #
+        #     my_sort = np.argsort(-scores_test[ind])
+        #     ndcg_res = LambdaMART.dcg_k(test[test.QID == qid].Y.as_matrix()[my_sort], 5) / LambdaMART.ideal_dcg_k(
+        #         test[test.QID == qid].Y.as_matrix(), 5)
+        #     # ndcg_my = LambdaMART.dcg_k(scores_test[ind], 5) / LambdaMART.ideal_dcg_k(scores_test[ind], 5)
+        #     # ndcg_res = LambdaMART.dcg_k(test[test.QID == qid].Y.as_matrix(), 5) / LambdaMART.ideal_dcg_k(
+        #     #     test[test.QID == qid].Y.as_matrix(), 5)
+        #     n_test.append(ndcg_res)
+        #     # error_test += (ndcg_my - ndcg_res) ** 2
 
         ndcg_train.append(np.mean(n_train))
-        ndcg_test.append(np.mean(n_test))
+        # ndcg_test.append(np.mean(n_test))
         plt.plot(ndcg_train, label='train')
-        plt.plot(ndcg_test, label='test')
+        # plt.plot(ndcg_test, label='test')
         plt.legend()
         plt.show()
         # print(error_train, error_test)
-        print(ndcg_train[-1], ndcg_test[-1])
+        print(ndcg_train[-1])
 
     predictor.save("temp/mart.dump")
     get_answer()
@@ -130,7 +130,7 @@ def main():
 
 def get_answer():
     predictor = LambdaMART.LambdaMART()
-    predictor.load("temp/mart.dump.lmart")
+    predictor.load("temp/temp_model_420_lr01.lmart")
 
     test = pd.read_csv("data/testset.cvs")
     X_columns = [col for col in test.columns if col[0] == u'X']
