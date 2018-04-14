@@ -43,14 +43,13 @@ def get_rate(ti_doc, query_bow):
 
 
 def get_tf_idf(query, docs, extractor):
-    stopwords_norm = DSR.clear_text(' '.join(stopwords.words('russian')))
     dictionary = gensim.corpora.Dictionary(
-        [[w for w in extractor(doc) if w not in stopwords_norm] for doc in docs], prune_at=None)
+        [[w for w in extractor(doc)] for doc in docs], prune_at=None)
 
-    raw_corpus = [dictionary.doc2bow([w for w in extractor(doc) if w not in stopwords_norm]) for doc in docs]
+    raw_corpus = [dictionary.doc2bow([w for w in extractor(doc)]) for doc in docs]
     gensim.corpora.MmCorpus.serialize(f'temp/corpa_{query[0]}.mm', raw_corpus)
     corpus = gensim.corpora.MmCorpus(f'temp/corpa_{query[0]}.mm')
-    tfidf_model = gensim.models.TfidfModel(dictionary=dictionary)#, wglobal=wglob, wlocal=wloc)
+    tfidf_model = gensim.models.TfidfModel(dictionary=dictionary)
     tf_idf_corpa = tfidf_model[corpus]
 
     query_bow = dictionary.doc2bow(query[1])
@@ -66,8 +65,8 @@ def one_query_job(query):
                      'links': DSR.get_from_doc_links, 'text': DSR.get_from_doc_text,
                      'description': DSR.get_from_doc_description}
 
-    content_multipliers = {'title': 2.0, 'keywords': 0.3,
-                           'links': 0.1, 'text': 1,
+    content_multipliers = {'title': 1., 'keywords': 0.3,
+                           'links': 0.1, 'text': 0.8,
                            'description': 0.6}
 
     docs = [doc for doc in DSR.read_docs_for_query(query[0])]
@@ -77,10 +76,10 @@ def one_query_job(query):
     res_scores = np.zeros(len(docs))
     for key in content_types.keys():
         cur_res_tf = np.array(get_tf_idf(query, docs, content_types[key])) * content_multipliers[key]
-        cur_res_cos = np.array(get_cosine_sim(query, docs, content_types[key])) * content_multipliers[key] * 2
-        cur_res = cur_res_cos + cur_res_tf
+        #cur_res_cos = np.array(get_cosine_sim(query, docs, content_types[key])) * content_multipliers[key]
+        #cur_res = cur_res_cos + cur_res_tf
         #print(cur_res.min(), cur_res.max())
-        res_scores += cur_res
+        res_scores += cur_res_tf
 
     best = np.argsort(-res_scores)[:10]
 
