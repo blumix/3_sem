@@ -10,8 +10,7 @@ import datetime
 
 import logging
 
-# from numba import jit
-
+from numba import jit
 
 # @jit
 def dcg(scores):
@@ -89,8 +88,7 @@ def ideal_dcg_k(scores, k):
     scores = [score for score in sorted(scores)[::-1]]
     return dcg_k(scores, k)
 
-
-# @jit
+@jit
 def single_dcg(scores, i, j):
     """
         Returns the DCG value at a single point.
@@ -110,10 +108,12 @@ def single_dcg(scores, i, j):
     """
     return (np.power(2, scores[i]) - 1) / np.log2(j + 2)
 
+
 # @jit
 def get_pairs(true_scores):
     """
         Returns pairs of indexes where the first value in the pair has a higher score than the second value in the pair.
+        scores have to be sorted.
         Parameters
         ----------
         true_scores : list of int
@@ -123,10 +123,11 @@ def get_pairs(true_scores):
         -------
         query_pair : list of pairs
             This contains a list of pairs of indexes in scores.
+            :param len_of_scores:
     """
-
-    for i in range(len(true_scores)):
-        for j in range(len(true_scores)):
+    len_of_scores = len(true_scores)
+    for i in range(len_of_scores):
+        for j in range(i, len_of_scores):
             if true_scores[i] > true_scores[j]:
                 yield (i, j)
 
@@ -161,19 +162,13 @@ def compute_lambda(args):
     lambdas = np.zeros(num_docs)
     w = np.zeros(num_docs)
 
-    pairs_num = 0
-    single_dcgs = {}
     for i, j in get_pairs(true_scores):
-        pairs_num += 1
-        if (i, i) not in single_dcgs:
-            single_dcgs[(i, i)] = single_dcg(true_scores, i, i)
-        single_dcgs[(i, j)] = single_dcg(true_scores, i, j)
-        if (j, j) not in single_dcgs:
-            single_dcgs[(j, j)] = single_dcg(true_scores, j, j)
-        single_dcgs[(j, i)] = single_dcg(true_scores, j, i)
+        sd_ii = single_dcg(true_scores, i, i)
+        sd_ij = single_dcg(true_scores, i, j)
+        sd_jj = single_dcg(true_scores, j, j)
+        sd_ji = single_dcg(true_scores, j, i)
 
-    for i, j in get_pairs(true_scores):
-        z_ndcg = abs(single_dcgs[(i, j)] - single_dcgs[(i, i)] + single_dcgs[(j, i)] - single_dcgs[(j, j)]) / idcg
+        z_ndcg = abs(sd_ij - sd_ii + sd_ji - sd_jj) / idcg
         rho = 1 / (1 + np.exp(predicted_scores[i] - predicted_scores[j]))
         rho_complement = 1.0 - rho
         lambda_val = z_ndcg * rho
@@ -183,6 +178,7 @@ def compute_lambda(args):
         w_val = rho * rho_complement * z_ndcg
         w[i] += w_val
         w[j] += w_val
+
     return lambdas[rev_indexes], w[rev_indexes], query_key
 
 
@@ -211,7 +207,7 @@ def group_queries(training_data, qid_index):
 
 
 class LambdaMART:
-    def __init__(self, training_data=None, number_of_trees=10, learning_rate=0.1):
+    def __init__(self, training_data=None, number_of_trees=10, learning_rate=1):
         """
         This is the constructor for the LambdaMART object.
         Parameters
@@ -228,8 +224,9 @@ class LambdaMART:
         self.number_of_trees = number_of_trees
         self.learning_rate = learning_rate
         self.trees = []
+        self.srinkage = []
 
-    def fit(self, test_data, save_period=10):
+    def fit(self, save_period=10):
         """
         Fits the model on the training data.
         Returns
@@ -244,7 +241,8 @@ class LambdaMART:
         query_keys = query_indexes.keys()
         true_scores = [self.training_data[query_indexes[query], 0] for query in query_keys]
         logging.info('True scores obtained.')
-        predicted_scores = np.ones(len(self.training_data)) * np.mean(self.training_data[:, 0])
+
+        predicted_scores = self.predict(self.training_data[:, 1:])
         logging.info('Prediction defaults created.')
 
         # ideal dcg calculation
@@ -252,7 +250,9 @@ class LambdaMART:
         logging.info("Ideal dcg's calculated")
 
         tree_times = []
-        for k in range(self.number_of_trees):
+        pretrained_trees = len (self.trees)
+        for k in range(pretrained_trees, self.number_of_trees):
+
             start_tree_time = time.time()
             logging.info(f"Training {k + 1} tree...")
             lambdas = np.zeros(len(predicted_scores))
@@ -269,34 +269,30 @@ class LambdaMART:
             pool.close()
             logging.info('Lambdas calculated.')
 
-            tree = DecisionTreeRegressor(max_depth=5)
+            tree = DecisionTreeRegressor(max_depth=4)
             tree.fit(self.training_data[:, 2:], lambdas)
             logging.info('Tree constructed.')
 
             nodes = tree.tree_.apply(self.training_data[:, 2:].astype(np.float32))
             for n in set(nodes):
-                up = np.sum(lambdas[nodes == n])
-                down = np.sum(w[nodes == n])
-                if down == 0:
-                    print(f"{up}/{down}, node {n}")
-                tree.tree_.value[n] = np.array([up / down]).reshape(
-                    tree.tree_.value[n].shape)
+                tree.tree_.value[n] = np.ones((1, 1)) * np.sum(lambdas[nodes == n]) / np.sum(w[nodes == n])
             logging.info('Weights updated.')
 
             self.trees.append(tree)
             prediction = tree.predict(self.training_data[:, 2:])
             predicted_scores += prediction * self.learning_rate
+            self.srinkage.append(self.learning_rate)
             tree_times.append(time.time() - start_tree_time)
 
             if k % save_period == 0:
                 self.save(f"temp/temp_model_{k}")
                 logging.info("saved")
+            yield predicted_scores
 
             logging.info(
                 f"Training {k + 1} tree done. Time spent: {datetime.timedelta(seconds=tree_times[-1])}. " +
                 f"Estimated time: {datetime.timedelta(seconds=np.mean (tree_times) * (self.number_of_trees - k -1))}.")
 
-            yield predicted_scores, self.predict(test_data)
         logging.info(f"Done. Time Elapsed:{datetime.timedelta(seconds=time.time() - start_time)}")
         pass
 
@@ -312,14 +308,16 @@ class LambdaMART:
         -------
         predicted_scores : Numpy array of scores
             This contains an array or the predicted scores for the documents.
+            :param data:
+            :param num_of_trees:
         """
         data = np.array(data)
         query_indexes = group_queries(data, 0)
-        predicted_scores = np.ones(len(data))
+        predicted_scores = np.zeros(len(data))
         for query in query_indexes:
-            results = np.ones(len(query_indexes[query]))
-            for i, tree in enumerate (self.trees):
-                results += self.learning_rate * tree.predict(data[query_indexes[query], 1:])
+            results = np.zeros(len(query_indexes[query]))
+            for i, tree in enumerate(self.trees):
+                results += self.srinkage[i] * tree.predict(data[query_indexes[query], 1:])
                 if (num_of_trees is not None) and i > num_of_trees:
                     break
             predicted_scores[query_indexes[query]] = results
