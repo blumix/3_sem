@@ -1,9 +1,11 @@
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -17,32 +19,33 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
 
 class LinksExtractor {
-    private Map<String, Integer> ids = get_ids();
+    private Map<String, Integer> ids;
     Integer current_id = -1;
     private ArrayList<String> cur_links;
 
-    private static Map<String, Integer> get_ids() {
+    LinksExtractor(JobContext context) {
+        ids = get_ids(context);
+    }
+
+
+    private Map<String, Integer> get_ids(JobContext context) {
         Map<String, Integer> map = new HashMap<>();
 
         try {
-            File file = new File("data/urls.txt");
-            FileReader fileReader = new FileReader(file);
-            BufferedReader bufferedReader = new BufferedReader(fileReader);
+            Path pt=new Path("hdfs:/data/infopoisk/hits_pagerank/urls.txt");//Location of file in HDFS
+            FileSystem fs = FileSystem.get(context.getConfiguration());
+            BufferedReader bufferedReader =new BufferedReader(new InputStreamReader(fs.open(pt)));
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 String[] split = line.split("\t");
                 map.put(split[1], Integer.parseInt(split[0]));
             }
-            fileReader.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -112,7 +115,12 @@ class LinksExtractor {
 
 public class GraphBuilder extends Configured implements Tool {
     public class GraphBuilderMapper extends Mapper<LongWritable, Text, IntWritable, IntWritable> {
-        LinksExtractor linksExtractor = new LinksExtractor();
+        LinksExtractor linksExtractor;
+        @Override
+        protected void setup(Context context) throws IOException, InterruptedException {
+            super.setup(context);
+            linksExtractor = new LinksExtractor(context);
+        }
 
         @Override
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
