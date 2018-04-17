@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
+
 def prepare_data():
-    train = pd.read_csv("data/train.data.cvs")#, nrows=1000)
+    train = pd.read_csv("data/train.data.cvs", nrows=2000)
     logging.info("data was read.")
     not_ranked = [qid for qid in set(train.QID) if len(set(train.Y[train.QID == qid])) == 1]
     for qid in not_ranked:
@@ -24,28 +25,39 @@ def prepare_data():
 
 
 def main():
-    train = pd.read_csv("data/prepared_train.csv")#, nrows=2000)
+    train = pd.read_csv("data/prepared_train.csv")#, nrows=100)
     logging.info("data was read.")
+    # inds = []
+    # for qid in sorted(set(train.QID), reverse=True):
+    #     prev_y = -1
+    #     for y_i in train[train.QID == qid].index:
+    #         if train.Y[y_i] != prev_y:
+    #             prev_y = train.Y[y_i]
+    #             inds.append(y_i)
+    # # train = train.loc[inds[:2]]
+
+    # train = train.reset_index(drop=True)
 
     X_columns = [col for col in train.columns if col[0] == u'X']
     train_colums = ['Y', 'QID'] + X_columns
 
-    predictor = LambdaMART.LambdaMART(training_data=train.as_matrix(columns=train_colums), number_of_trees=2000, learning_rate=1.)
+    predictor = LambdaMART.LambdaMART(training_data=train.as_matrix(columns=train_colums), number_of_trees=100,
+                                      learning_rate=1, max_depth=3)
     ndcg_train = []
     for scores_train in predictor.fit():
         n_train = []
         for qid in set(train.QID):
             ind = train[train.QID == qid].index
 
-            my_sort = np.argsort(-scores_train[ind])
+            my_sort = np.argsort(scores_train[ind])
             ndcg_res = LambdaMART.dcg_k(train[train.QID == qid].Y.as_matrix()[my_sort],
                                         5) / LambdaMART.ideal_dcg_k(
                 train[train.QID == qid].Y.as_matrix(), 5)
             n_train.append(ndcg_res)
 
         ndcg_train.append(np.mean(n_train))
-        if (len (ndcg_train))%10 == 0:
-            plt.plot(range(1, len (ndcg_train) + 1), ndcg_train, label='train')
+        if (len(ndcg_train)) % 10 == 0:
+            plt.plot(range(1, len(ndcg_train) + 1), ndcg_train, label='train')
             plt.legend()
             plt.show()
         print(ndcg_train[-1])
@@ -76,7 +88,6 @@ def get_answer():
         for i in range(lem):
             print(f"Qid:{q}, {ind[sd[i]]}, score:{scores[ind][sd[i]]}")
             f.write("{},{}\n".format(ind[sd[i]], q))
-
 
 
 if __name__ == '__main__':

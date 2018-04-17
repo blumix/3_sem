@@ -1,16 +1,15 @@
+import datetime
+import logging
+import pickle
 import time
 from collections import defaultdict
+from multiprocessing import Pool
 
 import numpy as np
-
 from sklearn.tree import DecisionTreeRegressor
-from multiprocessing import Pool
-import pickle
-import datetime
-
-import logging
 
 from numba import jit
+
 
 # @jit
 def dcg(scores):
@@ -26,7 +25,7 @@ def dcg(scores):
         DCG_val: int
             This is the value of the DCG on the given scores
     """
-    return np.sum([(np.power(2, scores[i]) - 1) / np.log2(i + 2) for i in range(len(scores))])
+    return np.sum([(np.power(2, scores[i]) - 1) / (np.log2(i + 2) + 1) for i in range(len(scores))])
 
 
 # @jit
@@ -46,7 +45,7 @@ def dcg_k(scores, k):
             This is the value of the DCG on the given scores
     """
     return np.sum([
-        (np.power(2, scores[i]) - 1) / np.log2(i + 2)
+        (np.power(2, scores[i]) - 1) / (np.log2(i + 2) + 1)
         for i in range(len(scores[:k]))
     ])
 
@@ -65,7 +64,7 @@ def ideal_dcg(scores):
         Ideal_DCG_val: int
             This is the value of the Ideal DCG on the given scores
     """
-    scores = [score for score in sorted(scores)[::-1]]
+    scores = [score for score in np.sort(scores, kind='mergesort')[::-1]]
     return dcg(scores)
 
 
@@ -85,10 +84,11 @@ def ideal_dcg_k(scores, k):
         Ideal_DCG_val: int
             This is the value of the Ideal DCG on the given scores
     """
-    scores = [score for score in sorted(scores)[::-1]]
+    scores = [score for score in np.sort(scores, kind='mergesort')[::-1]]
     return dcg_k(scores, k)
 
-@jit
+
+# @jit
 def single_dcg(scores, i, j):
     """
         Returns the DCG value at a single point.
@@ -106,7 +106,7 @@ def single_dcg(scores, i, j):
         Single_DCG: int
             This is the value of the DCG at a single point
     """
-    return (np.power(2, scores[i]) - 1) / np.log2(j + 2)
+    return (np.power(2, scores[i]) - 1) / (np.log2(j + 2) + 1)
 
 
 # @jit
@@ -125,6 +125,7 @@ def get_pairs(true_scores):
             This contains a list of pairs of indexes in scores.
             :param len_of_scores:
     """
+    # sorted = np.argsort(true_scores, kind='mergesort')[::-1]
     len_of_scores = len(true_scores)
     for i in range(len_of_scores):
         for j in range(i, len_of_scores):
@@ -133,53 +134,117 @@ def get_pairs(true_scores):
 
 
 # @jit
+# def compute_lambda(args):
+#     """
+#         Returns the lambda and w values for a given query.
+#         Parameters
+#         ----------
+#         args : zipped value of true_scores, predicted_scores, good_ij_pairs, idcg, query_key
+#             Contains a list of the true labels of documents, list of the predicted labels of documents,
+#             i and j pairs where true_score[i] > true_score[j], idcg values, and query keys.
+#
+#         Returns
+#         -------
+#         lambdas : numpy array
+#             This contains the calculated lambda values
+#         w : numpy array
+#             This contains the computed w values
+#         query_key : int
+#             This is the query id these values refer to
+#     """
+#
+#     true_scores, predicted_scores, idcg, query_key = args
+#     num_docs = len(true_scores)
+#     sorted_indexes = np.argsort(predicted_scores, kind='mergesort')#[::-1]
+#     rev_indexes = np.argsort(sorted_indexes)
+#     # true_scores = true_scores[sorted_indexes]
+#     # predicted_scores = predicted_scores[sorted_indexes]
+#
+#     ranks = np.zeros(sorted_indexes.shape[0])
+#
+#     for j in range(sorted_indexes.shape[0]):
+#         ranks[sorted_indexes[j]] = j + 1
+#
+#     lambdas = np.zeros(num_docs)
+#     w = np.zeros(num_docs)
+#
+#     for i, j in get_pairs(true_scores):
+#         lambda_val, w_val = calc_lambda_w(i, idcg, j, predicted_scores, true_scores, ranks)
+#
+#         lambdas[i] += lambda_val
+#         lambdas[j] -= lambda_val
+#         w[i] += w_val
+#         w[j] += w_val
+#
+#     return lambdas[rev_indexes], w[rev_indexes], query_key
+
+
 def compute_lambda(args):
-    """
-        Returns the lambda and w values for a given query.
-        Parameters
-        ----------
-        args : zipped value of true_scores, predicted_scores, good_ij_pairs, idcg, query_key
-            Contains a list of the true labels of documents, list of the predicted labels of documents,
-            i and j pairs where true_score[i] > true_score[j], idcg values, and query keys.
-
-        Returns
-        -------
-        lambdas : numpy array
-            This contains the calculated lambda values
-        w : numpy array
-            This contains the computed w values
-        query_key : int
-            This is the query id these values refer to
-    """
-
     true_scores, predicted_scores, idcg, query_key = args
-    num_docs = len(true_scores)
-    sorted_indexes = np.argsort(predicted_scores)[::-1]
-    rev_indexes = np.argsort(sorted_indexes)
-    true_scores = true_scores[sorted_indexes]
-    predicted_scores = predicted_scores[sorted_indexes]
 
-    lambdas = np.zeros(num_docs)
-    w = np.zeros(num_docs)
+    result = np.zeros(len(true_scores))
+    hess = np.zeros(len(true_scores))
 
-    for i, j in get_pairs(true_scores):
-        sd_ii = single_dcg(true_scores, i, i)
-        sd_ij = single_dcg(true_scores, i, j)
-        sd_jj = single_dcg(true_scores, j, j)
-        sd_ji = single_dcg(true_scores, j, i)
+    buf = np.argsort(predicted_scores)
+    ranks = np.zeros(buf.shape[0])
+    for j in range(buf.shape[0]):
+        ranks[buf[j]] = j
 
-        z_ndcg = abs(sd_ij - sd_ii + sd_ji - sd_jj) / idcg
-        rho = 1 / (1 + np.exp(predicted_scores[i] - predicted_scores[j]))
-        rho_complement = 1.0 - rho
-        lambda_val = z_ndcg * rho
-        lambdas[i] += lambda_val
-        lambdas[j] -= lambda_val
+    ndcg = 0.0
+    for i in range(len(true_scores)):
+        posi = int(true_scores[i])
+        reli = (1 << posi) - 1.0
+        ndcg += reli / (np.log2(len(true_scores) - i) + 1.0)
 
-        w_val = rho * rho_complement * z_ndcg
-        w[i] += w_val
-        w[j] += w_val
+    for i in range(len(true_scores)):
+        for j in range(i):
+            if true_scores[i] == true_scores[j]:
+                continue
 
-    return lambdas[rev_indexes], w[rev_indexes], query_key
+            r = predicted_scores[i] - predicted_scores[j]
+
+            posi = int(true_scores[i])
+            posj = int(true_scores[j])
+            reli = ((1 << posi) - 1.0)
+            relj = ((1 << posj) - 1.0)
+
+            delta = relj / (np.log2(len(true_scores) - ranks[i]) + 1.0)
+            delta += reli / (np.log2(len(true_scores) - ranks[j]) + 1.0)
+            delta -= reli / (np.log2(len(true_scores) - ranks[i]) + 1.0)
+            delta -= relj / (np.log2(len(true_scores) - ranks[j]) + 1.0)
+            delta = abs(delta / ndcg)
+
+            gr = -sigma(-r) * delta
+            result[i] += gr
+            result[j] -= gr
+            hess[i] += -gr * sigma(r)
+            hess[j] += -gr * sigma(r)
+
+    return result, hess, query_key
+
+
+# @jit
+def calc_lambda_w(i, idcg, j, predicted_scores, true_scores, ranks):
+    i_pow = np.power(2, true_scores[i]) - 1
+    j_pow = np.power(2, true_scores[j]) - 1
+    i_log = np.log2(ranks[i]) + 1
+    j_log = np.log2(ranks[j]) + 1
+    z_ndcg = abs(i_pow / j_log - i_pow / i_log + j_pow / i_log - j_pow / j_log) / idcg
+    dif = predicted_scores[j] - predicted_scores[i]
+    rho = sigma(-dif)
+    lambda_val = -z_ndcg * rho
+    w_val = rho * (1 - rho) * z_ndcg
+    return lambda_val, w_val
+
+
+# @jit
+def sigma(dif):
+    if dif > 20.:
+        return 1.
+    if dif < -20.:
+        return 0.
+
+    return 1. / (1. + np.exp(-dif))
 
 
 # @jit
@@ -207,7 +272,7 @@ def group_queries(training_data, qid_index):
 
 
 class LambdaMART:
-    def __init__(self, training_data=None, number_of_trees=10, learning_rate=1):
+    def __init__(self, training_data=None, number_of_trees=10, learning_rate=1, max_depth=3):
         """
         This is the constructor for the LambdaMART object.
         Parameters
@@ -218,8 +283,10 @@ class LambdaMART:
             Number of trees LambdaMART goes through
         learning_rate : float (default: 0.1)
             Rate at which we update our prediction with each tree
+            :type max_depth: object
         """
 
+        self.max_depth = max_depth
         self.training_data = training_data
         self.number_of_trees = number_of_trees
         self.learning_rate = learning_rate
@@ -242,7 +309,7 @@ class LambdaMART:
         true_scores = [self.training_data[query_indexes[query], 0] for query in query_keys]
         logging.info('True scores obtained.')
 
-        predicted_scores = self.predict(self.training_data[:, 1:])
+        predicted_scores = np.zeros(len(self.training_data))  # self.predict(self.training_data[:, 1:])
         logging.info('Prediction defaults created.')
 
         # ideal dcg calculation
@@ -250,7 +317,7 @@ class LambdaMART:
         logging.info("Ideal dcg's calculated")
 
         tree_times = []
-        pretrained_trees = len (self.trees)
+        pretrained_trees = len(self.trees)
         for k in range(pretrained_trees, self.number_of_trees):
 
             start_tree_time = time.time()
@@ -267,19 +334,30 @@ class LambdaMART:
                 lambdas[indexes] = lambda_val
                 w[indexes] = w_val
             pool.close()
+
+            lambdas = lambdas * -1
+            # print(lambdas)
+
             logging.info('Lambdas calculated.')
 
-            tree = DecisionTreeRegressor(max_depth=4)
+            tree = DecisionTreeRegressor(max_depth=self.max_depth)
             tree.fit(self.training_data[:, 2:], lambdas)
             logging.info('Tree constructed.')
 
             nodes = tree.tree_.apply(self.training_data[:, 2:].astype(np.float32))
             for n in set(nodes):
-                tree.tree_.value[n] = np.ones((1, 1)) * np.sum(lambdas[nodes == n]) / np.sum(w[nodes == n])
+                up = np.sum(lambdas[nodes == n])
+                down = np.sum(w[nodes == n])
+                if down == 0:
+                    val = 0
+                    print("here")
+                else:
+                    val = up / down
+                tree.tree_.value[n, 0, 0] = val
             logging.info('Weights updated.')
 
             self.trees.append(tree)
-            prediction = tree.predict(self.training_data[:, 2:])
+            prediction = tree.predict(self.training_data[:, 2:].astype(np.float32))
             predicted_scores += prediction * self.learning_rate
             self.srinkage.append(self.learning_rate)
             tree_times.append(time.time() - start_tree_time)
@@ -287,6 +365,7 @@ class LambdaMART:
             if k % save_period == 0:
                 self.save(f"temp/temp_model_{k}")
                 logging.info("saved")
+            # print(predicted_scores)
             yield predicted_scores
 
             logging.info(
@@ -384,3 +463,4 @@ class LambdaMART:
         self.number_of_trees = model.number_of_trees
         self.learning_rate = model.learning_rate
         self.trees = model.trees
+        self.srinkage = model.srinkage
