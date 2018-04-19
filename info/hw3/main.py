@@ -8,7 +8,7 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 
 
 def prepare_data():
-    train = pd.read_csv("data/train.data.cvs", nrows=2000)
+    train = pd.read_csv("data/train.data.cvs")  # , nrows=20000)
     logging.info("data was read.")
     not_ranked = [qid for qid in set(train.QID) if len(set(train.Y[train.QID == qid])) == 1]
     for qid in not_ranked:
@@ -17,15 +17,36 @@ def prepare_data():
 
     for qid in set(train.QID):
         for num, val, in enumerate(sorted(set(train.Y[train.QID == qid]))):
-            train.loc[(train.QID == qid) & (train.Y == val), 'Y'] = num
+            train.loc[(train.QID == qid) & (train.Y == val), 'Y'] = num + 1
 
     train = train.sort_values(by=['QID', 'Y'], ascending=False)
     train = train.reset_index(drop=True)
+    logging.info(f"{len (train)} prepared.")
     train.to_csv("data/prepared_train.csv")
 
 
+def test():
+    train = pd.read_csv("data/prepared_train.csv")  # , nrows=20000)
+    logging.info("data was read.")
+    X_columns = [col for col in train.columns if col[0] == u'X']
+    predictor = LambdaMART.LambdaMART()
+    predictor.load("temp/temp_model_630.lmart")
+    test_columns = ['QID'] + X_columns
+    scores = predictor.predict(train.as_matrix(columns=test_columns))
+
+    n_train = []
+    for qid in set(train.QID):
+        ind = train[train.QID == qid].index
+
+        my_sort = np.argsort(scores[ind])
+        ndcg_res = LambdaMART.dcg(train[train.QID == qid].Y.as_matrix()[my_sort]) / LambdaMART.ideal_dcg(
+            train[train.QID == qid].Y.as_matrix())
+        n_train.append(ndcg_res)
+
+    print(np.mean(n_train))
+
 def main():
-    train = pd.read_csv("data/prepared_train.csv")#, nrows=100)
+    train = pd.read_csv("data/prepared_train.csv")  # , nrows=20000)
     logging.info("data was read.")
     # inds = []
     # for qid in sorted(set(train.QID), reverse=True):
@@ -34,15 +55,20 @@ def main():
     #         if train.Y[y_i] != prev_y:
     #             prev_y = train.Y[y_i]
     #             inds.append(y_i)
-    # # train = train.loc[inds[:2]]
-
+    # train = train.loc[inds[:2]]
+    #
     # train = train.reset_index(drop=True)
 
     X_columns = [col for col in train.columns if col[0] == u'X']
     train_colums = ['Y', 'QID'] + X_columns
 
-    predictor = LambdaMART.LambdaMART(training_data=train.as_matrix(columns=train_colums), number_of_trees=100,
-                                      learning_rate=1, max_depth=3)
+    predictor = LambdaMART.LambdaMART(training_data=train.as_matrix(columns=train_colums), number_of_trees=1500,
+                                      learning_rate=0.25, max_depth=4)
+
+    # predictor = LambdaMART.LambdaMART()
+    # predictor.load('temp/temp_model_70.lmart')
+    # predictor.learning_rate = 1
+
     ndcg_train = []
     for scores_train in predictor.fit():
         n_train = []
@@ -50,9 +76,8 @@ def main():
             ind = train[train.QID == qid].index
 
             my_sort = np.argsort(scores_train[ind])
-            ndcg_res = LambdaMART.dcg_k(train[train.QID == qid].Y.as_matrix()[my_sort],
-                                        5) / LambdaMART.ideal_dcg_k(
-                train[train.QID == qid].Y.as_matrix(), 5)
+            ndcg_res = LambdaMART.dcg(train[train.QID == qid].Y.as_matrix()[my_sort]) / LambdaMART.ideal_dcg(
+                train[train.QID == qid].Y.as_matrix())
             n_train.append(ndcg_res)
 
         ndcg_train.append(np.mean(n_train))
@@ -68,20 +93,20 @@ def main():
 
 def get_answer():
     predictor = LambdaMART.LambdaMART()
-    predictor.load("temp/temp_model_2000.lmart")
+    predictor.load("temp/temp_model_630.lmart")
 
     test = pd.read_csv("data/testset.cvs")
     X_columns = [col for col in test.columns if col[0] == u'X']
 
     test_columns = ['QID'] + X_columns
-    scores = predictor.predict(test.as_matrix(columns=test_columns), num_of_trees=5)
+    scores = predictor.predict(test.as_matrix(columns=test_columns))
     qid = set(test.QID)
     global run_num
     f = open("results/try_{}.csv".format(run_num), "w")
     f.write("DocumentId,QueryId\n")
     for q in sorted(qid):
         ind = test[test.QID == q].index
-        sd = np.argsort(-scores[ind])
+        sd = np.argsort(scores[ind])
         lem = len(sd)
         if lem > 5:
             lem = 5
@@ -95,9 +120,7 @@ if __name__ == '__main__':
     run_num += 1
     open("run_number", "w").write("{}".format(run_num))
     print("Run number: ", run_num)
-    # test()
-    main()
-    # get_answer()
-    # counstruct_data_for_xgb()
+    test()
     # prepare_data()
-    # run_xgboost()
+    # main()
+    # get_answer()

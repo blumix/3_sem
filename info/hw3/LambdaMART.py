@@ -109,7 +109,7 @@ def single_dcg(scores, i, j):
     return (np.power(2, scores[i]) - 1) / (np.log2(j + 2) + 1)
 
 
-# @jit
+@jit
 def get_pairs(true_scores):
     """
         Returns pairs of indexes where the first value in the pair has a higher score than the second value in the pair.
@@ -128,116 +128,111 @@ def get_pairs(true_scores):
     # sorted = np.argsort(true_scores, kind='mergesort')[::-1]
     len_of_scores = len(true_scores)
     for i in range(len_of_scores):
-        for j in range(i, len_of_scores):
+        for j in range(len_of_scores):
             if true_scores[i] > true_scores[j]:
                 yield (i, j)
 
 
-# @jit
-# def compute_lambda(args):
-#     """
-#         Returns the lambda and w values for a given query.
-#         Parameters
-#         ----------
-#         args : zipped value of true_scores, predicted_scores, good_ij_pairs, idcg, query_key
-#             Contains a list of the true labels of documents, list of the predicted labels of documents,
-#             i and j pairs where true_score[i] > true_score[j], idcg values, and query keys.
-#
-#         Returns
-#         -------
-#         lambdas : numpy array
-#             This contains the calculated lambda values
-#         w : numpy array
-#             This contains the computed w values
-#         query_key : int
-#             This is the query id these values refer to
-#     """
-#
-#     true_scores, predicted_scores, idcg, query_key = args
-#     num_docs = len(true_scores)
-#     sorted_indexes = np.argsort(predicted_scores, kind='mergesort')#[::-1]
-#     rev_indexes = np.argsort(sorted_indexes)
-#     # true_scores = true_scores[sorted_indexes]
-#     # predicted_scores = predicted_scores[sorted_indexes]
-#
-#     ranks = np.zeros(sorted_indexes.shape[0])
-#
-#     for j in range(sorted_indexes.shape[0]):
-#         ranks[sorted_indexes[j]] = j + 1
-#
-#     lambdas = np.zeros(num_docs)
-#     w = np.zeros(num_docs)
-#
-#     for i, j in get_pairs(true_scores):
-#         lambda_val, w_val = calc_lambda_w(i, idcg, j, predicted_scores, true_scores, ranks)
-#
-#         lambdas[i] += lambda_val
-#         lambdas[j] -= lambda_val
-#         w[i] += w_val
-#         w[j] += w_val
-#
-#     return lambdas[rev_indexes], w[rev_indexes], query_key
-
-
+@jit
 def compute_lambda(args):
+    """
+        Returns the lambda and w values for a given query.
+        Parameters
+        ----------
+        args : zipped value of true_scores, predicted_scores, good_ij_pairs, idcg, query_key
+            Contains a list of the true labels of documents, list of the predicted labels of documents,
+            i and j pairs where true_score[i] > true_score[j], idcg values, and query keys.
+
+        Returns
+        -------
+        lambdas : numpy array
+            This contains the calculated lambda values
+        w : numpy array
+            This contains the computed w values
+        query_key : int
+            This is the query id these values refer to
+    """
+
     true_scores, predicted_scores, idcg, query_key = args
+    num_docs = len(true_scores)
+    sorted_indexes = np.argsort(predicted_scores, kind='mergesort')  # [::-1]
+    rev_indexes = np.argsort(sorted_indexes)
+    true_scores = true_scores[sorted_indexes]
+    predicted_scores = predicted_scores[sorted_indexes]
 
-    result = np.zeros(len(true_scores))
-    hess = np.zeros(len(true_scores))
+    lambdas = np.zeros(num_docs)
+    w = np.zeros(num_docs)
 
-    buf = np.argsort(predicted_scores)
-    ranks = np.zeros(buf.shape[0])
-    for j in range(buf.shape[0]):
-        ranks[buf[j]] = j
+    for i, j in get_pairs(true_scores):
+        lambda_val, w_val = calc_lambda_w(i, idcg, j, predicted_scores, true_scores)
 
-    ndcg = 0.0
-    for i in range(len(true_scores)):
-        posi = int(true_scores[i])
-        reli = (1 << posi) - 1.0
-        ndcg += reli / (np.log2(len(true_scores) - i) + 1.0)
+        lambdas[i] += lambda_val
+        lambdas[j] -= lambda_val
+        w[i] += w_val
+        w[j] += w_val
 
-    for i in range(len(true_scores)):
-        for j in range(i):
-            if true_scores[i] == true_scores[j]:
-                continue
-
-            r = predicted_scores[i] - predicted_scores[j]
-
-            posi = int(true_scores[i])
-            posj = int(true_scores[j])
-            reli = ((1 << posi) - 1.0)
-            relj = ((1 << posj) - 1.0)
-
-            delta = relj / (np.log2(len(true_scores) - ranks[i]) + 1.0)
-            delta += reli / (np.log2(len(true_scores) - ranks[j]) + 1.0)
-            delta -= reli / (np.log2(len(true_scores) - ranks[i]) + 1.0)
-            delta -= relj / (np.log2(len(true_scores) - ranks[j]) + 1.0)
-            delta = abs(delta / ndcg)
-
-            gr = -sigma(-r) * delta
-            result[i] += gr
-            result[j] -= gr
-            hess[i] += -gr * sigma(r)
-            hess[j] += -gr * sigma(r)
-
-    return result, hess, query_key
+    return lambdas[rev_indexes], w[rev_indexes], query_key
 
 
-# @jit
-def calc_lambda_w(i, idcg, j, predicted_scores, true_scores, ranks):
+# def compute_lambda(args):
+#     true_scores, predicted_scores, idcg, query_key = args
+#
+#     result = np.zeros(len(true_scores))
+#     hess = np.zeros(len(true_scores))
+#
+#     buf = np.argsort(predicted_scores)
+#     ranks = np.zeros(buf.shape[0])
+#     for j in range(buf.shape[0]):
+#         ranks[buf[j]] = j
+#
+#     ndcg = 0.0
+#     for i in range(len(true_scores)):
+#         posi = int(true_scores[i])
+#         reli = (1 << posi) - 1.0
+#         ndcg += reli / (np.log2(len(true_scores) - i) + 1.0)
+#
+#     for i in range(len(true_scores)):
+#         for j in range(i):
+#             if true_scores[i] == true_scores[j]:
+#                 continue
+#
+#             r = predicted_scores[i] - predicted_scores[j]
+#
+#             posi = int(true_scores[i])
+#             posj = int(true_scores[j])
+#             reli = ((1 << posi) - 1.0)
+#             relj = ((1 << posj) - 1.0)
+#
+#             delta = relj / (np.log2(len(true_scores) - ranks[i]) + 1.0)
+#             delta += reli / (np.log2(len(true_scores) - ranks[j]) + 1.0)
+#             delta -= reli / (np.log2(len(true_scores) - ranks[i]) + 1.0)
+#             delta -= relj / (np.log2(len(true_scores) - ranks[j]) + 1.0)
+#             delta = abs(delta / ndcg)
+#
+#             gr = -sigma(-r) * delta
+#             result[i] += gr
+#             result[j] -= gr
+#             hess[i] += -gr * sigma(r)
+#             hess[j] += -gr * sigma(r)
+#
+#     return result, hess, query_key
+
+
+@jit
+def calc_lambda_w(i, idcg, j, predicted_scores, true_scores):
     i_pow = np.power(2, true_scores[i]) - 1
     j_pow = np.power(2, true_scores[j]) - 1
-    i_log = np.log2(ranks[i]) + 1
-    j_log = np.log2(ranks[j]) + 1
+    i_log = np.log2(i + 2) + 1
+    j_log = np.log2(j + 2) + 1
     z_ndcg = abs(i_pow / j_log - i_pow / i_log + j_pow / i_log - j_pow / j_log) / idcg
-    dif = predicted_scores[j] - predicted_scores[i]
-    rho = sigma(-dif)
+    dif = predicted_scores[i] - predicted_scores[j]
+    rho = sigma(dif)
     lambda_val = -z_ndcg * rho
-    w_val = rho * (1 - rho) * z_ndcg
+    w_val = rho * sigma(-dif) * z_ndcg
     return lambda_val, w_val
 
 
-# @jit
+@jit
 def sigma(dif):
     if dif > 20.:
         return 1.
@@ -309,7 +304,7 @@ class LambdaMART:
         true_scores = [self.training_data[query_indexes[query], 0] for query in query_keys]
         logging.info('True scores obtained.')
 
-        predicted_scores = np.zeros(len(self.training_data))  # self.predict(self.training_data[:, 1:])
+        predicted_scores = self.predict(self.training_data[:, 1:])
         logging.info('Prediction defaults created.')
 
         # ideal dcg calculation
@@ -335,24 +330,22 @@ class LambdaMART:
                 w[indexes] = w_val
             pool.close()
 
-            lambdas = lambdas * -1
+            # lambdas = lambdas * -1
             # print(lambdas)
 
             logging.info('Lambdas calculated.')
 
-            tree = DecisionTreeRegressor(max_depth=self.max_depth)
+            tree = DecisionTreeRegressor(max_depth=self.max_depth)  # , max_leaf_nodes=32)
             tree.fit(self.training_data[:, 2:], lambdas)
             logging.info('Tree constructed.')
 
             nodes = tree.tree_.apply(self.training_data[:, 2:].astype(np.float32))
             for n in set(nodes):
-                up = np.sum(lambdas[nodes == n])
-                down = np.sum(w[nodes == n])
-                if down == 0:
+                up = lambdas[nodes == n].sum()
+                down = w[nodes == n].sum()
+                val = up / down
+                if abs(down) < 1e-15:
                     val = 0
-                    print("here")
-                else:
-                    val = up / down
                 tree.tree_.value[n, 0, 0] = val
             logging.info('Weights updated.')
 
