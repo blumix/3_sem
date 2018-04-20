@@ -125,7 +125,6 @@ def get_pairs(true_scores):
             This contains a list of pairs of indexes in scores.
             :param len_of_scores:
     """
-    # sorted = np.argsort(true_scores, kind='mergesort')[::-1]
     len_of_scores = len(true_scores)
     for i in range(len_of_scores):
         for j in range(len_of_scores):
@@ -155,7 +154,7 @@ def compute_lambda(args):
 
     true_scores, predicted_scores, idcg, query_key = args
     num_docs = len(true_scores)
-    sorted_indexes = np.argsort(predicted_scores, kind='mergesort')  # [::-1]
+    sorted_indexes = np.argsort(predicted_scores, kind='mergesort')[::-1]
     rev_indexes = np.argsort(sorted_indexes)
     true_scores = true_scores[sorted_indexes]
     predicted_scores = predicted_scores[sorted_indexes]
@@ -174,50 +173,6 @@ def compute_lambda(args):
     return lambdas[rev_indexes], w[rev_indexes], query_key
 
 
-# def compute_lambda(args):
-#     true_scores, predicted_scores, idcg, query_key = args
-#
-#     result = np.zeros(len(true_scores))
-#     hess = np.zeros(len(true_scores))
-#
-#     buf = np.argsort(predicted_scores)
-#     ranks = np.zeros(buf.shape[0])
-#     for j in range(buf.shape[0]):
-#         ranks[buf[j]] = j
-#
-#     ndcg = 0.0
-#     for i in range(len(true_scores)):
-#         posi = int(true_scores[i])
-#         reli = (1 << posi) - 1.0
-#         ndcg += reli / (np.log2(len(true_scores) - i) + 1.0)
-#
-#     for i in range(len(true_scores)):
-#         for j in range(i):
-#             if true_scores[i] == true_scores[j]:
-#                 continue
-#
-#             r = predicted_scores[i] - predicted_scores[j]
-#
-#             posi = int(true_scores[i])
-#             posj = int(true_scores[j])
-#             reli = ((1 << posi) - 1.0)
-#             relj = ((1 << posj) - 1.0)
-#
-#             delta = relj / (np.log2(len(true_scores) - ranks[i]) + 1.0)
-#             delta += reli / (np.log2(len(true_scores) - ranks[j]) + 1.0)
-#             delta -= reli / (np.log2(len(true_scores) - ranks[i]) + 1.0)
-#             delta -= relj / (np.log2(len(true_scores) - ranks[j]) + 1.0)
-#             delta = abs(delta / ndcg)
-#
-#             gr = -sigma(-r) * delta
-#             result[i] += gr
-#             result[j] -= gr
-#             hess[i] += -gr * sigma(r)
-#             hess[j] += -gr * sigma(r)
-#
-#     return result, hess, query_key
-
-
 @jit
 def calc_lambda_w(i, idcg, j, predicted_scores, true_scores):
     i_pow = np.power(2, true_scores[i]) - 1
@@ -228,7 +183,7 @@ def calc_lambda_w(i, idcg, j, predicted_scores, true_scores):
     dif = predicted_scores[i] - predicted_scores[j]
     rho = sigma(dif)
     lambda_val = -z_ndcg * rho
-    w_val = rho * sigma(-dif) * z_ndcg
+    w_val = rho * (1 - rho) * z_ndcg
     return lambda_val, w_val
 
 
@@ -239,7 +194,7 @@ def sigma(dif):
     if dif < -20.:
         return 0.
 
-    return 1. / (1. + np.exp(-dif))
+    return 1. / (1. + np.exp(dif))
 
 
 # @jit
@@ -288,7 +243,7 @@ class LambdaMART:
         self.trees = []
         self.srinkage = []
 
-    def fit(self, save_period=10):
+    def fit(self, save_period=10, test=None):
         """
         Fits the model on the training data.
         Returns
@@ -330,12 +285,12 @@ class LambdaMART:
                 w[indexes] = w_val
             pool.close()
 
-            # lambdas = lambdas * -1
+            lambdas = lambdas * -1
             # print(lambdas)
 
             logging.info('Lambdas calculated.')
 
-            tree = DecisionTreeRegressor(max_depth=self.max_depth)  # , max_leaf_nodes=32)
+            tree = DecisionTreeRegressor(max_leaf_nodes=32)  # max_depth=self.max_depth)  # ,
             tree.fit(self.training_data[:, 2:], lambdas)
             logging.info('Tree constructed.')
 
@@ -359,7 +314,10 @@ class LambdaMART:
                 self.save(f"temp/temp_model_{k}")
                 logging.info("saved")
             # print(predicted_scores)
-            yield predicted_scores
+
+            test_scores = self.predict(test)
+
+            yield predicted_scores, test_scores
 
             logging.info(
                 f"Training {k + 1} tree done. Time spent: {datetime.timedelta(seconds=tree_times[-1])}. " +
