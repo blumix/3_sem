@@ -25,7 +25,7 @@ def dcg(scores):
         DCG_val: int
             This is the value of the DCG on the given scores
     """
-    return np.sum([(np.power(2, scores[i]) - 1) / (np.log2(i + 2) + 1) for i in range(len(scores))])
+    return np.sum([(np.power(2, scores[i]) - 1) / np.log2(i + 2) for i in range(len(scores))])
 
 
 # @jit
@@ -45,7 +45,7 @@ def dcg_k(scores, k):
             This is the value of the DCG on the given scores
     """
     return np.sum([
-        (np.power(2, scores[i]) - 1) / (np.log2(i + 2) + 1)
+        (np.power(2, scores[i]) - 1) / np.log2(i + 2)
         for i in range(len(scores[:k]))
     ])
 
@@ -88,25 +88,25 @@ def ideal_dcg_k(scores, k):
     return dcg_k(scores, k)
 
 
-# @jit
-def single_dcg(scores, i, j):
-    """
-        Returns the DCG value at a single point.
-        Parameters
-        ----------
-        scores : list
-            Contains labels in a certain ranked order
-        i : int
-            This points to the ith value in scores
-        j : int
-            This sets the ith value in scores to be the jth rank
-
-        Returns
-        -------
-        Single_DCG: int
-            This is the value of the DCG at a single point
-    """
-    return (np.power(2, scores[i]) - 1) / (np.log2(j + 2) + 1)
+# # @jit
+# def single_dcg(scores, i, j):
+#     """
+#         Returns the DCG value at a single point.
+#         Parameters
+#         ----------
+#         scores : list
+#             Contains labels in a certain ranked order
+#         i : int
+#             This points to the ith value in scores
+#         j : int
+#             This sets the ith value in scores to be the jth rank
+#
+#         Returns
+#         -------
+#         Single_DCG: int
+#             This is the value of the DCG at a single point
+#     """
+#     return (np.power(2, scores[i]) - 1) / (np.log2(j + 2) + 1)
 
 
 @jit
@@ -177,28 +177,23 @@ def compute_lambda(args):
 def calc_lambda_w(i, idcg, j, predicted_scores, true_scores):
     i_pow = np.power(2, true_scores[i]) - 1
     j_pow = np.power(2, true_scores[j]) - 1
-    i_log = np.log2(i + 2) + 1
-    j_log = np.log2(j + 2) + 1
+    i_log = np.log2(i + 2)
+    j_log = np.log2(j + 2)
     z_ndcg = abs(i_pow / j_log - i_pow / i_log + j_pow / i_log - j_pow / j_log) / idcg
     dif = predicted_scores[i] - predicted_scores[j]
     rho = sigma(dif)
-    lambda_val = -z_ndcg * rho
+    lambda_val = z_ndcg * rho
     w_val = rho * (1 - rho) * z_ndcg
     return lambda_val, w_val
 
 
 @jit
 def sigma(dif):
-    if dif > 20.:
-        return 1.
-    if dif < -20.:
-        return 0.
-
     return 1. / (1. + np.exp(dif))
 
 
 # @jit
-def group_queries(training_data, qid_index):
+def group_queries(qid_index):
     """
         Returns a dictionary that groups the documents by their query ids.
         Parameters
@@ -214,15 +209,13 @@ def group_queries(training_data, qid_index):
             The keys were the different query ids and teh values were the indexes in the training data that are associated of those keys.
     """
     query_indexes = defaultdict(list)
-    index = 0
-    for record in training_data:
-        query_indexes[record[qid_index]].append(index)
-        index += 1
+    for i, qid in enumerate(qid_index):
+        query_indexes[qid].append(i)
     return query_indexes
 
 
 class LambdaMART:
-    def __init__(self, training_data=None, number_of_trees=10, learning_rate=1, max_depth=3):
+    def __init__(self, number_of_trees=10, learning_rate=1, max_depth=3, save_period=10):
         """
         This is the constructor for the LambdaMART object.
         Parameters
@@ -236,14 +229,14 @@ class LambdaMART:
             :type max_depth: object
         """
 
+        self.save_period = save_period
         self.max_depth = max_depth
-        self.training_data = training_data
         self.number_of_trees = number_of_trees
         self.learning_rate = learning_rate
         self.trees = []
         self.srinkage = []
 
-    def fit(self, save_period=10, test=None):
+    def fit(self, X, y, qid):
         """
         Fits the model on the training data.
         Returns
@@ -253,13 +246,14 @@ class LambdaMART:
         start_time = time.time()
 
         logging.info('Running fit job.')
-        query_indexes = group_queries(self.training_data, 1)
+        query_indexes = group_queries(qid)
         logging.info('Queries grouped.')
         query_keys = query_indexes.keys()
-        true_scores = [self.training_data[query_indexes[query], 0] for query in query_keys]
+        true_scores = [y[query_indexes[query]] for query in query_keys]
         logging.info('True scores obtained.')
 
-        predicted_scores = self.predict(self.training_data[:, 1:])
+        # predicted_scores = self.predict(self.training_data[:, 1:])
+        predicted_scores = np.zeros(len(y))
         logging.info('Prediction defaults created.')
 
         # ideal dcg calculation
@@ -284,40 +278,31 @@ class LambdaMART:
                 lambdas[indexes] = lambda_val
                 w[indexes] = w_val
             pool.close()
-
-            lambdas = lambdas * -1
-            # print(lambdas)
-
             logging.info('Lambdas calculated.')
 
             tree = DecisionTreeRegressor(max_leaf_nodes=32)  # max_depth=self.max_depth)  # ,
-            tree.fit(self.training_data[:, 2:], lambdas)
+            tree.fit(X, lambdas)
             logging.info('Tree constructed.')
 
-            nodes = tree.tree_.apply(self.training_data[:, 2:].astype(np.float32))
+            nodes = tree.tree_.apply(X.astype(np.float32))
             for n in set(nodes):
                 up = lambdas[nodes == n].sum()
                 down = w[nodes == n].sum()
                 val = up / down
-                if abs(down) < 1e-15:
-                    val = 0
                 tree.tree_.value[n, 0, 0] = val
             logging.info('Weights updated.')
 
             self.trees.append(tree)
-            prediction = tree.predict(self.training_data[:, 2:].astype(np.float32))
+            prediction = tree.predict(X)
             predicted_scores += prediction * self.learning_rate
             self.srinkage.append(self.learning_rate)
             tree_times.append(time.time() - start_tree_time)
 
-            if k % save_period == 0:
+            if k % self.save_period == 0:
                 self.save(f"temp/temp_model_{k}")
-                logging.info("saved")
-            # print(predicted_scores)
+                logging.info(f"Saved to \'temp/temp_model_{k}\'")
 
-            test_scores = self.predict(test)
-
-            yield predicted_scores, test_scores
+            yield predicted_scores
 
             logging.info(
                 f"Training {k + 1} tree done. Time spent: {datetime.timedelta(seconds=tree_times[-1])}. " +
@@ -326,7 +311,7 @@ class LambdaMART:
         logging.info(f"Done. Time Elapsed:{datetime.timedelta(seconds=time.time() - start_time)}")
         pass
 
-    def predict(self, data, num_of_trees=None):
+    def predict(self, X, qid):
         """
         Predicts the scores for the test dataset.
         Parameters
@@ -341,15 +326,12 @@ class LambdaMART:
             :param data:
             :param num_of_trees:
         """
-        data = np.array(data)
-        query_indexes = group_queries(data, 0)
-        predicted_scores = np.zeros(len(data))
+        query_indexes = group_queries(qid)
+        predicted_scores = np.zeros(len(X))
         for query in query_indexes:
             results = np.zeros(len(query_indexes[query]))
             for i, tree in enumerate(self.trees):
-                results += self.srinkage[i] * tree.predict(data[query_indexes[query], 1:])
-                if (num_of_trees is not None) and i > num_of_trees:
-                    break
+                results += self.srinkage[i] * tree.predict(X[query_indexes[query]])
             predicted_scores[query_indexes[query]] = results
         return predicted_scores
 
@@ -410,7 +392,6 @@ class LambdaMART:
 
         """
         model = pickle.load(open(fname, "rb"))
-        self.training_data = model.training_data
         self.number_of_trees = model.number_of_trees
         self.learning_rate = model.learning_rate
         self.trees = model.trees
