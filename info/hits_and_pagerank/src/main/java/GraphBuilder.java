@@ -134,11 +134,11 @@ public class GraphBuilder extends Configured implements Tool {
 
     }
 
-    public static class GraphBuilderReducer extends Reducer<IntWritable, IntWritable, IntWritable, IntWritable> {
+    public static class GraphBuilderReducer extends Reducer<LongWritable, LongWritable, LongWritable, LongWritable> {
         @Override
-        protected void reduce(IntWritable key, Iterable<IntWritable> nums, Context context) throws IOException, InterruptedException {
+        protected void reduce(LongWritable key, Iterable<LongWritable> nums, Context context) throws IOException, InterruptedException {
 
-            for (IntWritable val : nums) {
+            for (LongWritable val : nums) {
                 context.write(key, val);
             }
         }
