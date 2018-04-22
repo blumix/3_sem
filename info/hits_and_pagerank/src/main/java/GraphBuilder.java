@@ -152,6 +152,8 @@ public class GraphBuilder extends Configured implements Tool {
         job.setJobName(GraphBuilder.class.getCanonicalName());
 
         job.setInputFormatClass(TextInputFormat.class);
+        job.setMapOutputValueClass(LongWritable.class);
+        job.setMapOutputKeyClass(LongWritable.class);
         FileInputFormat.addInputPath(job, new Path(input));
         FileOutputFormat.setOutputPath(job, new Path(output));
 
