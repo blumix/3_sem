@@ -19,3 +19,10 @@ dependencies {
     compile 'org.jsoup:jsoup:1.11.3'
 
 }
+jar {
+    from {
+        (configurations.runtime).collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+}
