@@ -60,6 +60,8 @@ class LinksExtractor {
         cur_links = new ArrayList<>();
         for (Element link : links) {
             String ext_link = link.attr("href");
+            if (ext_link.length() < 1)
+                continue;
             if (ext_link.charAt(0) == '/') {
                 ext_link = "http://lenta.ru" + ext_link;
             }
