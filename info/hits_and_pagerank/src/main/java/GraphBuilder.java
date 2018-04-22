@@ -117,16 +117,16 @@ class LinksExtractor {
 
 public class GraphBuilder extends Configured implements Tool {
     public static class GraphBuilderMapper extends Mapper<LongWritable, Text, LongWritable, LongWritable> {
-//         linksExtractor;
-//        @Override
-//        protected void setup(Context context) throws IOException, InterruptedException {
-//            super.setup(context);
-//
-//        }
+        LinksExtractor linksExtractor;
+        @Override
+        protected void setup(Context context) throws IOException, InterruptedException {
+            super.setup(context);
+            linksExtractor = new LinksExtractor(context);
+        }
 
         @Override
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-            LinksExtractor linksExtractor = new LinksExtractor(context);
+
             ArrayList<Integer> links = linksExtractor.go_parse(value.toString());
 
             for (int link : links) {
