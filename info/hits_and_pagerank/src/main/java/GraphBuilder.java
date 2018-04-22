@@ -115,9 +115,6 @@ class LinksExtractor {
 
 public class GraphBuilder extends Configured implements Tool {
     public class GraphBuilderMapper extends Mapper<LongWritable, Text, IntWritable, IntWritable> {
-
-        GraphBuilderMapper () {}
-
         LinksExtractor linksExtractor;
         @Override
         protected void setup(Context context) throws IOException, InterruptedException {
