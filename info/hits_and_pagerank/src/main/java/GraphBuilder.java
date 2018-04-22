@@ -128,10 +128,11 @@ public class GraphBuilder extends Configured implements Tool {
             ArrayList<Integer> links = linksExtractor.go_parse(value.toString());
 
             for (int link : links) {
-                context.write(new LongWritable(linksExtractor.current_id), new LongWritable(link));
+                LongWritable k = new LongWritable(linksExtractor.current_id);
+                LongWritable v = new LongWritable(link);
+                context.write(k, v);
             }
         }
-
     }
 
     public static class GraphBuilderReducer extends Reducer<LongWritable, LongWritable, LongWritable, LongWritable> {
@@ -157,7 +158,7 @@ public class GraphBuilder extends Configured implements Tool {
         job.setMapperClass(GraphBuilderMapper.class);
         job.setReducerClass(GraphBuilderReducer.class);
 
-        job.setNumReduceTasks(10);
+//        job.setNumReduceTasks(10);
 
         return job;
     }
