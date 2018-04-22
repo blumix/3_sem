@@ -114,7 +114,7 @@ class LinksExtractor {
 }
 
 public class GraphBuilder extends Configured implements Tool {
-    public static class GraphBuilderMapper extends Mapper<LongWritable, Text, IntWritable, IntWritable> {
+    public static class GraphBuilderMapper extends Mapper<IntWritable, Text, IntWritable, IntWritable> {
 //         linksExtractor;
 //        @Override
 //        protected void setup(Context context) throws IOException, InterruptedException {
@@ -123,7 +123,7 @@ public class GraphBuilder extends Configured implements Tool {
 //        }
 
         @Override
-        protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+        protected void map(IntWritable key, Text value, Context context) throws IOException, InterruptedException {
             LinksExtractor linksExtractor = new LinksExtractor(context);
             ArrayList<Integer> links = linksExtractor.go_parse(value.toString());
 
