@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-hdfs dfs -rm -r hits_graph
+hdfs dfs -rm -r hits_graph&
 git fetch
 git rebase
 gradle jar
