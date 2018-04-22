@@ -153,6 +153,7 @@ public class DocCollectionInputFormat extends FileInputFormat<LongWritable, Text
     public List<InputSplit> getSplits(JobContext context) throws IOException {
         List<InputSplit> splits = new ArrayList<>();
 
+
         for (FileStatus status : listStatus(context)) {
             Path path = status.getPath();
             String index_file = path.getName();
