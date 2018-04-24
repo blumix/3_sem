@@ -60,6 +60,18 @@ def get_tf_idf(query, docs, extractor):
     return scores
 
 
+def read_doc_to_query_add(qid):
+    docs = []
+    sub = open("/home/mikhail.belozerov/Downloads/submit_tr11.csv", "r")
+    sub.readline()
+    for l in sub.readlines():
+        l = l[:-1]
+        spl = l.split(',')
+        if qid == int(spl[0]):
+            docs.append(int (spl[1]))
+    return docs
+
+
 def one_query_job(query):
     content_types = {'title': DSR.get_from_doc_title, 'keywords': DSR.get_from_doc_keywords,
                      'links': DSR.get_from_doc_links, 'text': DSR.get_from_doc_text,
@@ -73,13 +85,19 @@ def one_query_job(query):
 
     doc_ids = [doc.index for doc in docs]
 
+    adds = read_doc_to_query_add(query[0])
+
     res_scores = np.zeros(len(docs))
     for key in content_types.keys():
         cur_res_tf = np.array(get_tf_idf(query, docs, content_types[key])) * content_multipliers[key]
-        #cur_res_cos = np.array(get_cosine_sim(query, docs, content_types[key])) * content_multipliers[key]
-        #cur_res = cur_res_cos + cur_res_tf
-        #print(cur_res.min(), cur_res.max())
+        # cur_res_cos = np.array(get_cosine_sim(query, docs, content_types[key])) * content_multipliers[key]
+        # cur_res = cur_res_cos + cur_res_tf
+        # print(cur_res.min(), cur_res.max())
         res_scores += cur_res_tf
+
+    for i, doc_id, in enumerate (doc_ids):
+        if doc_id in adds:
+            res_scores[i] += (10 - adds.index(doc_id)) / 5
 
     best = np.argsort(-res_scores)[:10]
 
