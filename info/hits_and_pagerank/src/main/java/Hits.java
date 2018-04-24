@@ -43,7 +43,7 @@ public class Hits extends Configured implements Tool {
     }
 
 
-    public static class HitsAMapper extends Mapper<LongWritable, Text, LongWritable, DoubleWritable> {
+    public class HitsAMapper extends Mapper<LongWritable, Text, LongWritable, DoubleWritable> {
         Map<Long, Double> urls_with_weights;
 
         @Override
