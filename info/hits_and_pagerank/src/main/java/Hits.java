@@ -50,7 +50,7 @@ public class Hits extends Configured implements Tool {
             super.setup(context);
             Configuration conf = context.getConfiguration();
             String param = conf.get("epoch");
-            String fname = "hdfs:/user/m.belozerov/hits_out_" + param + "/a_scores.txt";
+            String fname = "hdfs:/user/m.belozerov/hits_out_" + param + "/a_scores/part-r-00000";
             urls_with_weights = read_lines( context, fname);
         }
 
@@ -71,7 +71,7 @@ public class Hits extends Configured implements Tool {
             super.setup(context);
             Configuration conf = context.getConfiguration();
             String param = conf.get("epoch");
-            String fname = "hdfs:/user/m.belozerov/hits_out_" + param + "/b_scores.txt";
+            String fname = "hdfs:/user/m.belozerov/hits_out_" + param + "/b_scores/part-r-00000";
             urls_with_weights = read_lines( context, fname);
         }
 
@@ -107,9 +107,6 @@ public class Hits extends Configured implements Tool {
         job.setJarByClass(Hits.class);
         job.setInputFormatClass(TextInputFormat.class);
 
-        FileInputFormat.setInputPaths(job, new Path(input));
-        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out_" + String.valueOf(epoch) + "/a_scores.txt"));
-
         job.setInputFormatClass(TextInputFormat.class);
         job.setMapOutputValueClass(DoubleWritable.class);
         job.setMapOutputKeyClass(LongWritable.class);
@@ -129,9 +126,6 @@ public class Hits extends Configured implements Tool {
 
         job.setJarByClass(Hits.class);
         job.setInputFormatClass(TextInputFormat.class);
-
-        FileInputFormat.setInputPaths(job, new Path(input));
-        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out_" + String.valueOf(epoch) + "/b_scores.txt"));
 
         job.setInputFormatClass(TextInputFormat.class);
         job.setMapOutputValueClass(DoubleWritable.class);
