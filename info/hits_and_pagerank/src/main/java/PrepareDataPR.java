@@ -55,7 +55,7 @@ public class PrepareDataPR extends Configured implements Tool {
         @Override
         protected void reduce(LongWritable key, Iterable<LongWritable> nums, Context context) throws IOException, InterruptedException {
             StringBuilder links = new StringBuilder();
-            links.append(1);
+            links.append(1. / 564549);
             links.append("\t");
             String prefix = "";
             for (LongWritable val : nums) {
