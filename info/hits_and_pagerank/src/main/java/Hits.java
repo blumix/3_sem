@@ -143,7 +143,7 @@ public class Hits extends Configured implements Tool {
     public int run(String[] args) throws Exception {
 
         int res = 0;
-        for (int epoch = 1; epoch < 5; epoch++) {
+        for (int epoch = 1; epoch < 10; epoch++) {
             {
                 Job job = getJobConf_A(args[0], epoch);
                 res += job.waitForCompletion(true) ? 0 : 1;

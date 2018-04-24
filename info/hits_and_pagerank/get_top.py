@@ -19,10 +19,10 @@ for l in f_b.readlines ():
 sorted_a = sorted(a.items(), key=lambda x:x[1])
 sorted_b = sorted(b.items(), key=lambda x:x[1])
 
-print ("Top A:")
+print ("Top H:")
 for s in sorted_a[-30:]:
     print (urls[s[0]])
 
-print ("Top B:")
+print ("Top A:")
 for s in sorted_b[-30:]:
     print (urls[s[0]])
