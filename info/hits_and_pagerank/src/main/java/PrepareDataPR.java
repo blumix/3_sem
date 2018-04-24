@@ -15,7 +15,7 @@ import java.io.IOException;
 
 public class PrepareDataPR extends Configured implements Tool {
     static public void main(String[] args) throws Exception {
-        int ret = ToolRunner.run(new GraphBuilder(), args);
+        int ret = ToolRunner.run(new PrepareDataPR(), args);
         System.exit(ret);
     }
 
