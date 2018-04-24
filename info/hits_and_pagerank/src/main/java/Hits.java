@@ -50,6 +50,7 @@ public class Hits extends Configured implements Tool {
         protected void setup(Context context) throws IOException, InterruptedException {
             super.setup(context);
             urls_with_weights = read_lines( context, "hdfs:/user/m.belozerov/hits/a_scores.txt");
+            urls_with_weights.get(1L);
         }
 
         @Override
