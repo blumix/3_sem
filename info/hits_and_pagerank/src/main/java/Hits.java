@@ -59,6 +59,15 @@ public class Hits extends Configured implements Tool {
             Long to = Long.valueOf(value.toString().split("\t")[1]);
             Double result = urls_with_weights.get(to);
 
+            if (result == null)
+            {
+                try {
+                    throw new Exception(String.valueOf(to));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
             LongWritable wf = new LongWritable(from);
 
             DoubleWritable sec = new DoubleWritable(0);
