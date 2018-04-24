@@ -61,7 +61,7 @@ public class Hits extends Configured implements Tool {
 
             LongWritable wf = new LongWritable(from);
 
-            DoubleWritable sec = new DoubleWritable(result);
+            DoubleWritable sec = new DoubleWritable(0);
 
             context.write(wf, sec);
         }
