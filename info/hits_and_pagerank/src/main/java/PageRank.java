@@ -20,7 +20,7 @@ public class PageRank {
     private static final String LINKS_SEPARATOR = "|";
     private static final Double DAMPING = 0.85;
     private static NumberFormat NF = new DecimalFormat("00");
-    private static int ITERATIONS = 2;
+    private static int ITERATIONS = 25;
 
 
     public static void main(String[] args) throws Exception {
