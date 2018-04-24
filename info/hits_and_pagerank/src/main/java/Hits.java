@@ -110,72 +110,102 @@ public class Hits extends Configured implements Tool {
 //        return job;
 //    }
 
-    public int run(String[] args) throws Exception {
+//    public int run(String[] args) throws Exception {
+//
+//        JobControl jobControl = new JobControl("jobChain");
+//        Configuration conf1 = getConf();
+//
+//        Job job1 = Job.getInstance(conf1);
+//        job1.setJarByClass(Hits.class);
+//        job1.setJobName("A Combined");
+//        job1.setInputFormatClass(TextInputFormat.class);
+//
+//        FileInputFormat.setInputPaths(job1, new Path(args[0]));
+//        FileOutputFormat.setOutputPath(job1, new Path("hdfs:/user/m.belozerov/hits_out/a_scores.txt"));
+//
+//        job1.setMapperClass(HitsAMapper.class);
+//        job1.setReducerClass(HitsReducer.class);
+//
+//        job1.setOutputKeyClass(LongWritable.class);
+//        job1.setOutputValueClass(DoubleWritable.class);
+//
+//        ControlledJob controlledJob1 = new ControlledJob(conf1);
+//        controlledJob1.setJob(job1);
+//
+//        jobControl.addJob(controlledJob1);
+//        Configuration conf2 = getConf();
+//
+//        Job job2 = Job.getInstance(conf2);
+//
+//        job2.setJarByClass(Hits.class);
+//        job2.setJobName("B combined");
+//
+//        job2.setInputFormatClass(TextInputFormat.class);
+//        FileInputFormat.setInputPaths(job2, new Path(args[0]));
+//        FileOutputFormat.setOutputPath(job2, new Path("hdfs:/user/m.belozerov/hits_out/b_scores.txt"));
+//
+//        job2.setMapperClass(HitsBMapper.class);
+//        job2.setReducerClass(HitsReducer.class);
+//
+//        job2.setOutputKeyClass(LongWritable.class);
+//        job2.setOutputValueClass(DoubleWritable.class);
+//
+//        ControlledJob controlledJob2 = new ControlledJob(conf2);
+//        controlledJob2.setJob(job2);
+//
+//        // make job2 dependent on job1
+//        controlledJob2.addDependingJob(controlledJob1);
+//        // add the job to the job control
+//        jobControl.addJob(controlledJob2);
+//        Thread jobControlThread = new Thread(jobControl);
+//        jobControlThread.start();
+//
+//        while (!jobControl.allFinished()) {
+//            System.out.println("Jobs in waiting state: " + jobControl.getWaitingJobList().size());
+//            System.out.println("Jobs in ready state: " + jobControl.getReadyJobsList().size());
+//            System.out.println("Jobs in running state: " + jobControl.getRunningJobList().size());
+//            System.out.println("Jobs in success state: " + jobControl.getSuccessfulJobList().size());
+//            System.out.println("Jobs in failed state: " + jobControl.getFailedJobList().size());
+//            try {
+//                Thread.sleep(5000);
+//            } catch (Exception ignored) {
+//
+//            }
+//
+//        }
+//        System.exit(0);
+//        return (job1.waitForCompletion(true) ? 0 : 1);
+//    }
 
-        JobControl jobControl = new JobControl("jobChain");
-        Configuration conf1 = getConf();
+    private Job getJobConf(String input) throws IOException {
+        Job job = Job.getInstance(getConf());
 
-        Job job1 = Job.getInstance(conf1);
-        job1.setJarByClass(Hits.class);
-        job1.setJobName("A Combined");
-        job1.setInputFormatClass(TextInputFormat.class);
 
-        FileInputFormat.setInputPaths(job1, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job1, new Path("hdfs:/user/m.belozerov/hits_out/a_scores.txt"));
+        job.setInputFormatClass(TextInputFormat.class);
 
-        job1.setMapperClass(HitsAMapper.class);
-        job1.setReducerClass(HitsReducer.class);
+        FileInputFormat.setInputPaths(job, new Path(input));
+        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out/a_scores.txt"));
 
-        job1.setOutputKeyClass(LongWritable.class);
-        job1.setOutputValueClass(DoubleWritable.class);
+        job.setInputFormatClass(TextInputFormat.class);
+        job.setMapOutputValueClass(DoubleWritable.class);
+        job.setMapOutputKeyClass(LongWritable.class);
+        FileInputFormat.addInputPath(job, new Path(input));
+        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out/a_scores_1"));
 
-        ControlledJob controlledJob1 = new ControlledJob(conf1);
-        controlledJob1.setJob(job1);
+        job.setMapperClass(HitsAMapper.class);
+        job.setReducerClass(HitsReducer.class);
 
-        jobControl.addJob(controlledJob1);
-        Configuration conf2 = getConf();
+//        job.setNumReduceTasks(10);
 
-        Job job2 = Job.getInstance(conf2);
-
-        job2.setJarByClass(Hits.class);
-        job2.setJobName("B combined");
-
-        job2.setInputFormatClass(TextInputFormat.class);
-        FileInputFormat.setInputPaths(job2, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job2, new Path("hdfs:/user/m.belozerov/hits_out/b_scores.txt"));
-
-        job2.setMapperClass(HitsBMapper.class);
-        job2.setReducerClass(HitsReducer.class);
-
-        job2.setOutputKeyClass(LongWritable.class);
-        job2.setOutputValueClass(DoubleWritable.class);
-
-        ControlledJob controlledJob2 = new ControlledJob(conf2);
-        controlledJob2.setJob(job2);
-
-        // make job2 dependent on job1
-        controlledJob2.addDependingJob(controlledJob1);
-        // add the job to the job control
-        jobControl.addJob(controlledJob2);
-        Thread jobControlThread = new Thread(jobControl);
-        jobControlThread.start();
-
-        while (!jobControl.allFinished()) {
-            System.out.println("Jobs in waiting state: " + jobControl.getWaitingJobList().size());
-            System.out.println("Jobs in ready state: " + jobControl.getReadyJobsList().size());
-            System.out.println("Jobs in running state: " + jobControl.getRunningJobList().size());
-            System.out.println("Jobs in success state: " + jobControl.getSuccessfulJobList().size());
-            System.out.println("Jobs in failed state: " + jobControl.getFailedJobList().size());
-            try {
-                Thread.sleep(5000);
-            } catch (Exception ignored) {
-
-            }
-
-        }
-        System.exit(0);
-        return (job1.waitForCompletion(true) ? 0 : 1);
+        return job;
     }
+
+    @Override
+    public int run(String[] args) throws Exception {
+        Job job = getJobConf(args[0]);
+        return job.waitForCompletion(true) ? 0 : 1;
+    }
+
 
 //    @Override
 //    public int run(String[] args) throws Exception {
