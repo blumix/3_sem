@@ -118,6 +118,7 @@ public class Hits extends Configured implements Tool {
         Job job1 = Job.getInstance(conf1);
         job1.setJarByClass(Hits.class);
         job1.setJobName("A Combined");
+        job1.setInputFormatClass(TextInputFormat.class);
 
         FileInputFormat.setInputPaths(job1, new Path(args[0]));
         FileOutputFormat.setOutputPath(job1, new Path("hdfs:/user/m.belozerov/hits_out/a_scores.txt"));
@@ -135,9 +136,11 @@ public class Hits extends Configured implements Tool {
         Configuration conf2 = getConf();
 
         Job job2 = Job.getInstance(conf2);
+
         job2.setJarByClass(Hits.class);
         job2.setJobName("B combined");
 
+        job2.setInputFormatClass(TextInputFormat.class);
         FileInputFormat.setInputPaths(job2, new Path(args[0]));
         FileOutputFormat.setOutputPath(job2, new Path("hdfs:/user/m.belozerov/hits_out/b_scores.txt"));
 
@@ -181,7 +184,7 @@ public class Hits extends Configured implements Tool {
 //    }
 
     static public void main(String[] args) throws Exception {
-        int ret = ToolRunner.run(new GraphBuilder(), args);
+        int ret = ToolRunner.run(new Hits(), args);
         System.exit(ret);
     }
 }
