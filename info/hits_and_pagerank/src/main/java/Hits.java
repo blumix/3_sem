@@ -58,12 +58,6 @@ public class Hits extends Configured implements Tool {
             Long from = Long.valueOf(value.toString().split("\t")[0]);
             Long to = Long.valueOf(value.toString().split("\t")[1]);
 
-            try {
-                throw new Exception(String.valueOf(urls_with_weights.get(to)));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
             context.write(new LongWritable(from), new DoubleWritable(urls_with_weights.get(to)));
         }
     }
@@ -94,6 +88,12 @@ public class Hits extends Configured implements Tool {
             Double sum = 0.;
             for (DoubleWritable val : nums) {
                 sum += val.get();
+                try {
+                    throw new Exception(String.valueOf(val.get()));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
             }
             context.write(key, new DoubleWritable(sum));
         }
