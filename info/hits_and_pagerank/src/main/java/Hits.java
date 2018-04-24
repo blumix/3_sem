@@ -111,7 +111,7 @@ public class Hits extends Configured implements Tool {
         job.setMapOutputValueClass(DoubleWritable.class);
         job.setMapOutputKeyClass(LongWritable.class);
         FileInputFormat.addInputPath(job, new Path(input));
-        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out_"+ String.valueOf(epoch + 1)+ "/b_scores"));
+        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out_"+ String.valueOf(epoch)+ "/b_scores"));
 
         job.setMapperClass(HitsAMapper.class);
         job.setReducerClass(HitsReducer.class);
@@ -121,7 +121,7 @@ public class Hits extends Configured implements Tool {
 
     private Job getJobConf_B(String input, Integer epoch) throws IOException {
 
-        getConf().set("epoch", String.valueOf(epoch));
+        getConf().set("epoch", String.valueOf(epoch - 1));
         Job job = Job.getInstance(getConf());
 
         job.setJarByClass(Hits.class);
@@ -131,7 +131,7 @@ public class Hits extends Configured implements Tool {
         job.setMapOutputValueClass(DoubleWritable.class);
         job.setMapOutputKeyClass(LongWritable.class);
         FileInputFormat.addInputPath(job, new Path(input));
-        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out_"+ String.valueOf(epoch + 1)+ "/a_scores"));
+        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out_"+ String.valueOf(epoch)+ "/a_scores"));
 
         job.setMapperClass(HitsBMapper.class);
         job.setReducerClass(HitsReducer.class);
