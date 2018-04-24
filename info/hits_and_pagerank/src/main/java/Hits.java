@@ -120,7 +120,7 @@ public class Hits extends Configured implements Tool {
         job1.setJobName("A Combined");
 
         FileInputFormat.setInputPaths(job1, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job1, new Path("hdfs:/user/m.belozerov/hits/a_scores.txt"));
+        FileOutputFormat.setOutputPath(job1, new Path("hdfs:/user/m.belozerov/hits_out/a_scores.txt"));
 
         job1.setMapperClass(HitsAMapper.class);
         job1.setReducerClass(HitsReducer.class);
@@ -139,7 +139,7 @@ public class Hits extends Configured implements Tool {
         job2.setJobName("B combined");
 
         FileInputFormat.setInputPaths(job2, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job2, new Path("hdfs:/user/m.belozerov/hits/b_scores.txt"));
+        FileOutputFormat.setOutputPath(job2, new Path("hdfs:/user/m.belozerov/hits_out/b_scores.txt"));
 
         job2.setMapperClass(HitsBMapper.class);
         job2.setReducerClass(HitsReducer.class);
