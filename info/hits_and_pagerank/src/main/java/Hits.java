@@ -88,13 +88,13 @@ public class Hits extends Configured implements Tool {
             Double sum = 0.;
             for (DoubleWritable val : nums) {
                 sum += val.get();
-                try {
-                    throw new Exception(String.valueOf(val.get()));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
             }
+            try {
+                throw new Exception(String.valueOf(sum));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
             context.write(key, new DoubleWritable(sum));
         }
     }
