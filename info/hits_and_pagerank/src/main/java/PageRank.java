@@ -27,18 +27,13 @@ public class PageRank {
 
         PageRank pagerank = new PageRank();
 
-        String IN_PATH = "PaRa";
         String OUT_PATH = "OutPaRa";
-        boolean isCompleted = pagerank.job(IN_PATH, OUT_PATH + "/iter00");
-        if (!isCompleted) {
-            System.exit(1);
-        }
-
+        
         for (int runs = 0; runs < ITERATIONS; runs++) {
             String inPath = OUT_PATH + "/iter" + NF.format(runs);
             String lastOutPath = OUT_PATH + "/iter" + NF.format(runs + 1);
             System.out.println("Running Job#2 [" + (runs + 1) + "/" + PageRank.ITERATIONS + "] (PageRank calculation) ...");
-            isCompleted = pagerank.job(inPath, lastOutPath);
+            boolean isCompleted = pagerank.job(inPath, lastOutPath);
             if (!isCompleted) {
                 System.exit(1);
             }
