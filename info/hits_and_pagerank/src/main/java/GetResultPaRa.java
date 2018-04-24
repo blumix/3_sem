@@ -26,8 +26,8 @@ public class GetResultPaRa extends Configured implements Tool {
         job.setJobName(GetResultPaRa.class.getCanonicalName());
 
         job.setInputFormatClass(TextInputFormat.class);
-        job.setMapOutputValueClass(DoubleWritable.class);
-        job.setMapOutputKeyClass(LongWritable.class);
+        job.setMapOutputValueClass(Text.class);
+        job.setMapOutputKeyClass(DoubleWritable.class);
         FileInputFormat.addInputPath(job, new Path(input));
         FileOutputFormat.setOutputPath(job, new Path(output));
 
