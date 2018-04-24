@@ -101,7 +101,7 @@ public class Hits extends Configured implements Tool {
 
     private Job getJobConf_A(String input, Integer epoch) throws IOException {
 
-        getConf().set("epoch", String.valueOf(epoch));
+        getConf().set("epoch", String.valueOf(epoch - 1));
         Job job = Job.getInstance(getConf());
 
         job.setJarByClass(Hits.class);
