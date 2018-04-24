@@ -34,7 +34,7 @@ public class Hits extends Configured implements Tool {
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 String[] split = line.split("\t");
-                map.put(Long.parseLong(split[1]), Double.parseDouble(split[0]));
+                map.put(Long.parseLong(split[0]), Double.parseDouble(split[1]));
             }
 //        } catch (IOException e) {
 //            e.printStackTrace();
