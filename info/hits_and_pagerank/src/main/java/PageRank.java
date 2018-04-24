@@ -97,6 +97,8 @@ public class PageRank {
 
             String[] allOtherPages = links.split(",");
             for (String otherPage : allOtherPages) {
+                if (otherPage.equals(""))
+                    continue;
                 Text pageRankWithTotalLinks = new Text(pageRank + "\t" + allOtherPages.length);
                 context.write(new Text(otherPage), pageRankWithTotalLinks);
             }
