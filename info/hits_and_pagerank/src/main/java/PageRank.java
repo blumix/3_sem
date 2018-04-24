@@ -71,7 +71,7 @@ public class PageRank {
     }
 
 
-    public class PageRankMapper extends Mapper<LongWritable, Text, Text, Text> {
+    public static class PageRankMapper extends Mapper<LongWritable, Text, Text, Text> {
 
         @Override
         public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
@@ -114,7 +114,7 @@ public class PageRank {
     }
 
 
-    public class PageRankJob2Reducer extends Reducer<Text, Text, Text, Text> {
+    public static class PageRankJob2Reducer extends Reducer<Text, Text, Text, Text> {
 
         @Override
         public void reduce(Text key, Iterable<Text> values, Context context) throws IOException,
