@@ -5,19 +5,18 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.jobcontrol.JobControl;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
-import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -49,8 +48,10 @@ public class Hits extends Configured implements Tool {
         @Override
         protected void setup(Context context) throws IOException, InterruptedException {
             super.setup(context);
-            urls_with_weights = read_lines( context, "hdfs:/user/m.belozerov/hits/a_scores.txt");
-//            urls_with_weights.get(1L);
+            Configuration conf = context.getConfiguration();
+            String param = conf.get("epoch");
+            String fname = "hdfs:/user/m.belozerov/hits_out_" + param + "/a_scores.txt";
+            urls_with_weights = read_lines( context, fname);
         }
 
         @Override
@@ -68,7 +69,10 @@ public class Hits extends Configured implements Tool {
         @Override
         protected void setup(Context context) throws IOException, InterruptedException {
             super.setup(context);
-            urls_with_weights = read_lines( context, "hdfs:/user/m.belozerov/hits/b_scores.txt");
+            Configuration conf = context.getConfiguration();
+            String param = conf.get("epoch");
+            String fname = "hdfs:/user/m.belozerov/hits_out_" + param + "/b_scores.txt";
+            urls_with_weights = read_lines( context, fname);
         }
 
         @Override
@@ -89,136 +93,75 @@ public class Hits extends Configured implements Tool {
             for (DoubleWritable val : nums) {
                 sum += val.get();
             }
-            try {
-                throw new Exception(String.valueOf(sum));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
 
             context.write(key, new DoubleWritable(sum));
         }
     }
 
-//    private Job getJobConf(String input, String output) throws IOException {
-//        Job job = Job.getInstance(getConf());
-//
-//        job.setJarByClass(GraphBuilder.class);
-//        job.setJobName(GraphBuilder.class.getCanonicalName());
-//
-//        job.setInputFormatClass(TextInputFormat.class);
-//        job.setMapOutputValueClass(LongWritable.class);
-//        job.setMapOutputKeyClass(LongWritable.class);
-//        FileInputFormat.addInputPath(job, new Path(input));
-//        FileOutputFormat.setOutputPath(job, new Path(output));
-//
-//        job.setMapperClass(HitsAMapper.class);
-//        job.setReducerClass(HitsReducer.class);
-//
-//        return job;
-//    }
 
-//    public int run(String[] args) throws Exception {
-//
-//        JobControl jobControl = new JobControl("jobChain");
-//        Configuration conf1 = getConf();
-//
-//        Job job1 = Job.getInstance(conf1);
-//        job1.setJarByClass(Hits.class);
-//        job1.setJobName("A Combined");
-//        job1.setInputFormatClass(TextInputFormat.class);
-//
-//        FileInputFormat.setInputPaths(job1, new Path(args[0]));
-//        FileOutputFormat.setOutputPath(job1, new Path("hdfs:/user/m.belozerov/hits_out/a_scores.txt"));
-//
-//        job1.setMapperClass(HitsAMapper.class);
-//        job1.setReducerClass(HitsReducer.class);
-//
-//        job1.setOutputKeyClass(LongWritable.class);
-//        job1.setOutputValueClass(DoubleWritable.class);
-//
-//        ControlledJob controlledJob1 = new ControlledJob(conf1);
-//        controlledJob1.setJob(job1);
-//
-//        jobControl.addJob(controlledJob1);
-//        Configuration conf2 = getConf();
-//
-//        Job job2 = Job.getInstance(conf2);
-//
-//        job2.setJarByClass(Hits.class);
-//        job2.setJobName("B combined");
-//
-//        job2.setInputFormatClass(TextInputFormat.class);
-//        FileInputFormat.setInputPaths(job2, new Path(args[0]));
-//        FileOutputFormat.setOutputPath(job2, new Path("hdfs:/user/m.belozerov/hits_out/b_scores.txt"));
-//
-//        job2.setMapperClass(HitsBMapper.class);
-//        job2.setReducerClass(HitsReducer.class);
-//
-//        job2.setOutputKeyClass(LongWritable.class);
-//        job2.setOutputValueClass(DoubleWritable.class);
-//
-//        ControlledJob controlledJob2 = new ControlledJob(conf2);
-//        controlledJob2.setJob(job2);
-//
-//        // make job2 dependent on job1
-//        controlledJob2.addDependingJob(controlledJob1);
-//        // add the job to the job control
-//        jobControl.addJob(controlledJob2);
-//        Thread jobControlThread = new Thread(jobControl);
-//        jobControlThread.start();
-//
-//        while (!jobControl.allFinished()) {
-//            System.out.println("Jobs in waiting state: " + jobControl.getWaitingJobList().size());
-//            System.out.println("Jobs in ready state: " + jobControl.getReadyJobsList().size());
-//            System.out.println("Jobs in running state: " + jobControl.getRunningJobList().size());
-//            System.out.println("Jobs in success state: " + jobControl.getSuccessfulJobList().size());
-//            System.out.println("Jobs in failed state: " + jobControl.getFailedJobList().size());
-//            try {
-//                Thread.sleep(5000);
-//            } catch (Exception ignored) {
-//
-//            }
-//
-//        }
-//        System.exit(0);
-//        return (job1.waitForCompletion(true) ? 0 : 1);
-//    }
+    private Job getJobConf_A(String input, Integer epoch) throws IOException {
 
-    private Job getJobConf(String input) throws IOException {
+        getConf().set("epoch", String.valueOf(epoch));
         Job job = Job.getInstance(getConf());
 
         job.setJarByClass(Hits.class);
         job.setInputFormatClass(TextInputFormat.class);
 
         FileInputFormat.setInputPaths(job, new Path(input));
-        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out/a_scores.txt"));
+        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out_" + String.valueOf(epoch) + "/a_scores.txt"));
 
         job.setInputFormatClass(TextInputFormat.class);
         job.setMapOutputValueClass(DoubleWritable.class);
         job.setMapOutputKeyClass(LongWritable.class);
         FileInputFormat.addInputPath(job, new Path(input));
-        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out/a_scores_1"));
+        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out_"+ String.valueOf(epoch + 1)+ "/b_scores"));
 
         job.setMapperClass(HitsAMapper.class);
         job.setReducerClass(HitsReducer.class);
 
-//        job.setNumReduceTasks(10);
+        return job;
+    }
+
+    private Job getJobConf_B(String input, Integer epoch) throws IOException {
+
+        getConf().set("epoch", String.valueOf(epoch));
+        Job job = Job.getInstance(getConf());
+
+        job.setJarByClass(Hits.class);
+        job.setInputFormatClass(TextInputFormat.class);
+
+        FileInputFormat.setInputPaths(job, new Path(input));
+        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out_" + String.valueOf(epoch) + "/b_scores.txt"));
+
+        job.setInputFormatClass(TextInputFormat.class);
+        job.setMapOutputValueClass(DoubleWritable.class);
+        job.setMapOutputKeyClass(LongWritable.class);
+        FileInputFormat.addInputPath(job, new Path(input));
+        FileOutputFormat.setOutputPath(job, new Path("hdfs:/user/m.belozerov/hits_out_"+ String.valueOf(epoch + 1)+ "/a_scores"));
+
+        job.setMapperClass(HitsBMapper.class);
+        job.setReducerClass(HitsReducer.class);
 
         return job;
     }
 
     @Override
     public int run(String[] args) throws Exception {
-        Job job = getJobConf(args[0]);
-        return job.waitForCompletion(true) ? 0 : 1;
+
+        int res = 0;
+        for (int epoch = 1; epoch < 5; epoch++) {
+            {
+                Job job = getJobConf_A(args[0], epoch);
+                res += job.waitForCompletion(true) ? 0 : 1;
+            }
+            {
+                Job job = getJobConf_B(args[0], epoch);
+                res += job.waitForCompletion(true) ? 0 : 1;
+            }
+        }
+        return res;
     }
 
-
-//    @Override
-//    public int run(String[] args) throws Exception {
-//        Job job = getJobConf(args[0], args[1]);
-//        return job.waitForCompletion(true) ? 0 : 1;
-//    }
 
     static public void main(String[] args) throws Exception {
         int ret = ToolRunner.run(new Hits(), args);
