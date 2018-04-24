@@ -77,8 +77,8 @@ public class Hits extends Configured implements Tool {
 
         @Override
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-            Long from = key.get();
-            Long to = Long.valueOf(value.toString());
+            Long from = Long.valueOf(value.toString().split("\t")[0]);
+            Long to = Long.valueOf(value.toString().split("\t")[1]);
 
             context.write(new LongWritable(to), new DoubleWritable(urls_with_weights.get(from)));
         }
