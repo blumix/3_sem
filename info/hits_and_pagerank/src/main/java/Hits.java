@@ -50,16 +50,15 @@ public class Hits extends Configured implements Tool {
         protected void setup(Context context) throws IOException, InterruptedException {
             super.setup(context);
             urls_with_weights = read_lines( context, "hdfs:/user/m.belozerov/hits/a_scores.txt");
-            urls_with_weights.get(1L);
+//            urls_with_weights.get(1L);
         }
 
         @Override
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
             Long from = Long.valueOf(value.toString().split("\t")[0]);
             Long to = Long.valueOf(value.toString().split("\t")[1]);
-
-
-            context.write(new LongWritable(from), new DoubleWritable(urls_with_weights.get(to)));
+            Double result = urls_with_weights.get(to);
+            context.write(new LongWritable(from), new DoubleWritable(result));
         }
     }
 
