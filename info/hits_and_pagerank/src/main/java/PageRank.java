@@ -32,7 +32,7 @@ public class PageRank {
         for (int runs = 0; runs < ITERATIONS; runs++) {
             String inPath = OUT_PATH + "/iter" + NF.format(runs);
             String lastOutPath = OUT_PATH + "/iter" + NF.format(runs + 1);
-            System.out.println("Running Job#2 [" + (runs + 1) + "/" + PageRank.ITERATIONS + "] (PageRank calculation) ...");
+            System.out.println("Running Job [" + (runs + 1) + "/" + PageRank.ITERATIONS + "] (PageRank calculation) ...");
             boolean isCompleted = pagerank.job(inPath, lastOutPath);
             if (!isCompleted) {
                 System.exit(1);
@@ -156,7 +156,7 @@ public class PageRank {
 
             }
 
-            double newRank = PageRank.DAMPING * sumShareOtherPageRanks + (1 - PageRank.DAMPING);
+            double newRank = PageRank.DAMPING * sumShareOtherPageRanks + (1 - PageRank.DAMPING) * (1 / 564549.);
             context.write(key, new Text(newRank + "\t" + links));
 
         }
