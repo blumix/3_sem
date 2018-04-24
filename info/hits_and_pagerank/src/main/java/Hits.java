@@ -24,10 +24,10 @@ import java.util.Map;
 
 public class Hits extends Configured implements Tool {
 
-    private static Map<Long, Double> read_lines(Mapper.Context context, String filename) {
+    private static Map<Long, Double> read_lines(Mapper.Context context, String filename) throws IOException {
         Map<Long, Double> map = new HashMap<>();
 
-        try {
+//        try {
             Path pt=new Path(filename);//Location of file in HDFS
             FileSystem fs = FileSystem.get(context.getConfiguration());
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(fs.open(pt)));
@@ -36,14 +36,14 @@ public class Hits extends Configured implements Tool {
                 String[] split = line.split("\t");
                 map.put(Long.parseLong(split[1]), Double.parseDouble(split[0]));
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
         return map;
     }
 
 
-    public class HitsAMapper extends Mapper<LongWritable, Text, LongWritable, DoubleWritable> {
+    public static class HitsAMapper extends Mapper<LongWritable, Text, LongWritable, DoubleWritable> {
         Map<Long, Double> urls_with_weights;
 
         @Override
