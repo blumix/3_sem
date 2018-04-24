@@ -180,7 +180,7 @@ public class Hits extends Configured implements Tool {
     private Job getJobConf(String input) throws IOException {
         Job job = Job.getInstance(getConf());
 
-
+        job.setJarByClass(Hits.class);
         job.setInputFormatClass(TextInputFormat.class);
 
         FileInputFormat.setInputPaths(job, new Path(input));
