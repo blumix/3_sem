@@ -20,9 +20,9 @@ sorted_a = sorted(a.items(), key=lambda x:x[1])
 sorted_b = sorted(b.items(), key=lambda x:x[1])
 
 print ("Top H:")
-for s in sorted_a[-30:]:
+for s in reversed (sorted_a[-30:]):
     print (urls[s[0]])
 
 print ("Top A:")
-for s in sorted_b[-30:]:
+for s in reversed (sorted_b[-30:])
     print (urls[s[0]])
