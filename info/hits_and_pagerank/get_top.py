@@ -24,5 +24,5 @@ for s in reversed (sorted_a[-30:]):
     print (urls[s[0]])
 
 print ("Top A:")
-for s in reversed (sorted_b[-30:])
+for s in reversed (sorted_b[-30:]):
     print (urls[s[0]])
