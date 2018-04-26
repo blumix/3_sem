@@ -252,8 +252,8 @@ class LambdaMART:
         true_scores = [y[query_indexes[query]] for query in query_keys]
         logging.info('True scores obtained.')
 
-        # predicted_scores = self.predict(self.training_data[:, 1:])
-        predicted_scores = np.zeros(len(y))
+        predicted_scores = self.predict(X, qid)
+        #predicted_scores = np.zeros(len(y))
         logging.info('Prediction defaults created.')
 
         # ideal dcg calculation
@@ -280,7 +280,7 @@ class LambdaMART:
             pool.close()
             logging.info('Lambdas calculated.')
 
-            tree = DecisionTreeRegressor(max_leaf_nodes=32)  # max_depth=self.max_depth)  # ,
+            tree = DecisionTreeRegressor(max_depth=self.max_depth)
             tree.fit(X, lambdas)
             logging.info('Tree constructed.')
 

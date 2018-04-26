@@ -9,7 +9,7 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 
 def prepare_data():
     train = pd.read_csv("data/train.data.cvs")  # , nrows=20000)
-    logging.info("data was read.")
+    logging.info("data was red.")
     not_ranked = [qid for qid in set(train.QID) if len(set(train.Y[train.QID == qid])) == 1]
     for qid in not_ranked:
         train = train.drop(train[train.QID == qid].index, axis=0)
@@ -27,7 +27,7 @@ def prepare_data():
 
 def test():
     train = pd.read_csv("data/prepared_train.csv")  # , nrows=20000)
-    logging.info("data was read.")
+    logging.info("data was red.")
     X_columns = [col for col in train.columns if col[0] == u'X']
     predictor = LambdaMART.LambdaMART()
     predictor.load("temp/temp_model_630.lmart")
@@ -48,7 +48,7 @@ def test():
 
 def main():
     train = pd.read_csv("data/prepared_train.csv")  # , nrows=100)
-    logging.info("data was read.")
+    logging.info("data was red.")
     # inds = []
     # for qid in sorted(set(train.QID), reverse=True):
     #     prev_y = -1
@@ -65,7 +65,10 @@ def main():
     y = train.Y.as_matrix()
     qids = train.QID.as_matrix()
 
-    predictor = LambdaMART.LambdaMART(number_of_trees=1500, learning_rate=0.1, max_depth=4)
+    #predictor = LambdaMART.LambdaMART(number_of_trees=400, learning_rate=0.1, max_depth=4)
+    predictor = LambdaMART.LambdaMART()
+    predictor.load("temp/mart.dump.lmart")
+    predictor.number_of_trees=1500
 
     ndcg_train = []
     for scores_train in predictor.fit(X=X, y=y, qid=qids):
@@ -89,7 +92,7 @@ def main():
 
 def get_answer():
     predictor = LambdaMART.LambdaMART()
-    model_file = "temp/temp_model_660.lmart"
+    model_file = "temp/temp_model_570.lmart"
     logging.info(f"using {model_file}")
     predictor.load(model_file)
 
@@ -122,5 +125,5 @@ if __name__ == '__main__':
     print("Run number: ", run_num)
     # test()
     # prepare_data()
-    # main()
+    #main()
     get_answer()
