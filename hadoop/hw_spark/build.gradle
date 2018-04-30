@@ -1,0 +1,28 @@
+group = 'ru.mail.go'
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    maven {
+        name = 'cloudera'
+        url = 'https://repository.cloudera.com/artifactory/cloudera-repos'
+    }
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.apache.hadoop:hadoop-common:2.6.0-cdh5.14.0'
+    compile 'org.apache.hadoop:hadoop-mapreduce-client-core:2.6.0-cdh5.14.0'
+    compile 'com.google.guava:guava:24.0-jre'
+
+    compile 'org.apache.spark:spark-mllib_2.11:2.1.0'
+    compile 'org.apache.spark:spark-sql_2.11:2.1.0'
+    compile 'org.apache.spark:spark-streaming-flume-assembly_2.11:2.1.0'
+    compile 'org.apache.spark:spark-graphx_2.11:2.1.0'
+    compile 'org.apache.spark:spark-launcher_2.11:2.1.0'
+    compile 'org.apache.spark:spark-catalyst_2.11:2.1.0'
+    compile 'org.apache.spark:spark-streaming_2.11:2.1.0'
+    compile 'org.apache.spark:spark-core_2.11:2.1.0'
+}
