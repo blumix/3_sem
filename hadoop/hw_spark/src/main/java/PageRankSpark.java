@@ -7,7 +7,7 @@ import scala.Tuple2;
 
 import java.util.ArrayList;
 
-public class RageRankSpark {
+public class PageRankSpark {
     public static void main(String[] args) {
 
         if (args.length != 3)
