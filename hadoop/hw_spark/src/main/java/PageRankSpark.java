@@ -7,6 +7,7 @@ import scala.Tuple2;
 
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class PageRankSpark {
     public static void main(String[] args) {
@@ -22,16 +23,8 @@ public class PageRankSpark {
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         JavaRDD<String> input = sc.textFile(inputFile);
-        String header = input.first();
-        String finalHeader = header;
-        input = input.filter(str -> !str.equals(finalHeader));
-        header = input.first();
-        String finalHeader1 = header;
-        input = input.filter(str -> !str.equals(finalHeader1));
-        header = input.first();
-        String finalHeader2 = header;
-        input = input.filter(str -> !str.equals(finalHeader2));
-
+        List<String> header = input.take(3);
+        input = input.filter(str -> !header.contains(str));
 
         JavaPairRDD<Long, Long> pairs = input.mapToPair(v -> {
             String[] pair = v.split("\t");
