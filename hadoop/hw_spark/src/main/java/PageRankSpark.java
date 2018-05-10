@@ -25,8 +25,12 @@ public class PageRankSpark {
         String header = input.first();
         input = input.filter(str -> !str.equals(header));
 
+        int i = 0;
         for(String line:input.collect()){
             System.out.println("* "+line);
+            i += 1;
+            if (i > 100)
+                return;
         }
 
         JavaPairRDD<Long, Long> pairs = input.mapToPair(v -> {
