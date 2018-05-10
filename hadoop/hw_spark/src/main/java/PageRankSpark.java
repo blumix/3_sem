@@ -24,6 +24,7 @@ public class PageRankSpark {
         JavaRDD<String> input = sc.textFile(inputFile);
 
         JavaPairRDD<Long, Long> pairs = input.mapToPair(v -> {
+            System.out.println(v);
             String[] pair = v.split("\t");
             return new Tuple2<>(Long.valueOf(pair[0]), Long.valueOf(pair[1]));
         });
