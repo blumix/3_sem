@@ -5,6 +5,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import scala.Tuple2;
 
+
 import java.util.ArrayList;
 
 public class PageRankSpark {
@@ -14,8 +15,8 @@ public class PageRankSpark {
             System.out.println("Usage: iterations, alpha, input, output");
 
         int iterations = Integer.valueOf(args[0]);
-        String inputFile = args[2];
-        String outputFile = args[3];
+        String inputFile = args[1];
+        String outputFile = args[2];
 
         SparkConf conf = new SparkConf().setAppName("PageRank");
         JavaSparkContext sc = new JavaSparkContext(conf);
