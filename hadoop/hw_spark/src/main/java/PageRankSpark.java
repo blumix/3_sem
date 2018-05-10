@@ -26,7 +26,7 @@ public class PageRankSpark {
         input = input.filter(str -> !str.equals(header));
 
         int j = 0;
-        for(String line:input.collect()){
+        for(String line:input.take(10)){
             System.out.println("* "+line);
             j += 1;
             if (j > 100)
