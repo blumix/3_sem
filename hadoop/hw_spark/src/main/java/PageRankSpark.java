@@ -25,11 +25,11 @@ public class PageRankSpark {
         String header = input.first();
         input = input.filter(str -> !str.equals(header));
 
-        int i = 0;
+        int j = 0;
         for(String line:input.collect()){
             System.out.println("* "+line);
-            i += 1;
-            if (i > 100)
+            j += 1;
+            if (j > 100)
                 return;
         }
 
