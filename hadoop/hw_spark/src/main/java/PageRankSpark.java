@@ -22,9 +22,10 @@ public class PageRankSpark {
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         JavaRDD<String> input = sc.textFile(inputFile);
+        String header = input.first();
+        input = input.filter(str -> str.equals(header));
 
         JavaPairRDD<Long, Long> pairs = input.mapToPair(v -> {
-            System.out.println(v);
             String[] pair = v.split("\t");
             return new Tuple2<>(Long.valueOf(pair[0]), Long.valueOf(pair[1]));
         });
