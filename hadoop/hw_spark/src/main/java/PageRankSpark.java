@@ -23,7 +23,7 @@ public class PageRankSpark {
 
         JavaRDD<String> input = sc.textFile(inputFile);
         String header = input.first();
-        input = input.filter(str -> str.equals(header));
+        input = input.filter(str -> !str.equals(header));
 
         JavaPairRDD<Long, Long> pairs = input.mapToPair(v -> {
             String[] pair = v.split("\t");
