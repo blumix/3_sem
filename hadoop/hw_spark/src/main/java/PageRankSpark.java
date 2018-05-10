@@ -22,9 +22,8 @@ public class PageRankSpark {
         SparkConf conf = new SparkConf().setAppName("PageRank");
         JavaSparkContext sc = new JavaSparkContext(conf);
 
-        JavaRDD<String> input = sc.textFile(inputFile);
-        List<String> header = input.take(3);
-        input = input.filter(str -> !header.contains(str));
+        JavaRDD<String> input_f = sc.textFile(inputFile);
+        JavaRDD<String> input = input_f.filter(str -> !(str.charAt(0) == '#'));
 
         JavaPairRDD<Long, Long> pairs = input.mapToPair(v -> {
             String[] pair = v.split("\t");
