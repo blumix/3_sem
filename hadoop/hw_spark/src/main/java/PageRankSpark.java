@@ -32,6 +32,7 @@ public class PageRankSpark {
             if (j > 100)
                 return;
         }
+        return;
 
         JavaPairRDD<Long, Long> pairs = input.mapToPair(v -> {
             String[] pair = v.split("\t");
