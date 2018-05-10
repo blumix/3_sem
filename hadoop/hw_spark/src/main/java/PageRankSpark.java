@@ -23,54 +23,53 @@ public class PageRankSpark {
 
         JavaRDD<String> input = sc.textFile(inputFile);
         String header = input.first();
-        input = input.filter(str -> !str.equals(header));
+        String finalHeader = header;
+        input = input.filter(str -> !str.equals(finalHeader));
+        header = input.first();
+        String finalHeader1 = header;
+        input = input.filter(str -> !str.equals(finalHeader1));
+        header = input.first();
+        String finalHeader2 = header;
+        input = input.filter(str -> !str.equals(finalHeader2));
 
-        int j = 0;
-        for (String line : input.take(10)) {
-            System.out.println("* " + line);
-            j += 1;
-            if (j > 100)
-                return;
+
+        JavaPairRDD<Long, Long> pairs = input.mapToPair(v -> {
+            String[] pair = v.split("\t");
+            return new Tuple2<>(Long.valueOf(pair[0]), Long.valueOf(pair[1]));
+        });
+
+        JavaPairRDD<Long, ArrayList<Long>> links = pairs
+                .groupByKey()
+                .mapToPair(k -> new Tuple2<>(k._1(), Lists.newArrayList(k._2())))
+                .cache();
+
+        long count = links.count();
+        double singlePR = 1. / count;
+        double alpha = Double.valueOf(args[1]);
+        long no_out_count = links.filter(K-> K._2().isEmpty()).count();
+        JavaPairRDD<Long, Double> pr = links.mapToPair(k -> new Tuple2<>(k._1(), singlePR));
+
+        for (int i = 0; i < iterations; i++) {
+            double no_out_sum = pr.join(links).filter(K-> K._2()._2().isEmpty()).map(K-> K._2()._1()).reduce ((K, V) -> K += V);
+            double add_pr = no_out_sum / no_out_count;
+            pr = pr.join(links)
+                    .flatMapToPair(k -> {
+                        ArrayList<Tuple2<Long, Double>> arr = new ArrayList<>();
+                        int len = k._2()._2().size();
+                        for (Long n : k._2()._2()) {
+                            arr.add(new Tuple2<>(n, k._2()._1() / len));
+                        }
+                        return arr.iterator();
+                    })
+                    .reduceByKey((K, V) -> {
+                        if (K == 0) {
+                            K += singlePR * alpha + (1-alpha) * add_pr;
+                        }
+                        return K + V * (1 - alpha);
+                    });
         }
+
+        JavaPairRDD<Double, Long> sorted_pr = pr.mapToPair(Tuple2::swap).sortByKey();
+        sorted_pr.saveAsTextFile(outputFile);
     }
-        //
-//        JavaPairRDD<Long, Long> pairs = input.mapToPair(v -> {
-//            String[] pair = v.split("\t");
-//            return new Tuple2<>(Long.valueOf(pair[0]), Long.valueOf(pair[1]));
-//        });
-//
-//        JavaPairRDD<Long, ArrayList<Long>> links = pairs
-//                .groupByKey()
-//                .mapToPair(k -> new Tuple2<>(k._1(), Lists.newArrayList(k._2())))
-//                .cache();
-//
-//        long count = links.count();
-//        double singlePR = 1. / count;
-//        double alpha = Double.valueOf(args[1]);
-//        long no_out_count = links.filter(K-> K._2().isEmpty()).count();
-//        JavaPairRDD<Long, Double> pr = links.mapToPair(k -> new Tuple2<>(k._1(), singlePR));
-//
-//        for (int i = 0; i < iterations; i++) {
-//            double no_out_sum = pr.join(links).filter(K-> K._2()._2().isEmpty()).map(K-> K._2()._1()).reduce ((K, V) -> K += V);
-//            double add_pr = no_out_sum / no_out_count;
-//            pr = pr.join(links)
-//                    .flatMapToPair(k -> {
-//                        ArrayList<Tuple2<Long, Double>> arr = new ArrayList<>();
-//                        int len = k._2()._2().size();
-//                        for (Long n : k._2()._2()) {
-//                            arr.add(new Tuple2<>(n, k._2()._1() / len));
-//                        }
-//                        return arr.iterator();
-//                    })
-//                    .reduceByKey((K, V) -> {
-//                        if (K == 0) {
-//                            K += singlePR * alpha + (1-alpha) * add_pr;
-//                        }
-//                        return K + V * (1 - alpha);
-//                    });
-//        }
-//
-//        JavaPairRDD<Double, Long> sorted_pr = pr.mapToPair(Tuple2::swap).sortByKey();
-//        sorted_pr.saveAsTextFile(outputFile);
-//    }
 }
