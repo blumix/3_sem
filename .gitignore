@@ -5,3 +5,11 @@ build/
 *~
 *.class
 *.dat
+*.csv
+*.txt
+.ipynb_checkpoints/
+*.tar.gz
+*.data
+*.submission
+*.vw
+*.cache
